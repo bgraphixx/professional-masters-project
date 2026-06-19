@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
@@ -39,3 +39,57 @@ class LoginRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+class CategoryResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    type: str
+    is_default: bool
+
+    class Config:
+        from_attributes = True
+
+class TransactionCreate(BaseModel):
+    amount: float = Field(..., gt=0.0)
+    transaction_date: Optional[date] = None
+    description: str = Field(..., min_length=1, max_length=500)
+    type: str = Field(..., pattern="^(income|expense)$")
+    source: Optional[str] = Field(default="manual", pattern="^(manual|csv)$")
+    category_id: Optional[uuid.UUID] = None
+
+class TransactionUpdate(BaseModel):
+    amount: Optional[float] = Field(default=None, gt=0.0)
+    transaction_date: Optional[date] = None
+    description: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    type: Optional[str] = Field(default=None, pattern="^(income|expense)$")
+    category_id: Optional[uuid.UUID] = None
+    is_flagged: Optional[bool] = None
+
+class TransactionResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    category_id: Optional[uuid.UUID] = None
+    amount: float
+    transaction_date: date
+    description: str
+    type: str
+    source: str
+    confidence_score: float
+    is_flagged: bool
+    category: Optional[CategoryResponse] = None
+
+    class Config:
+        from_attributes = True
+
+class MLCategorizeRequest(BaseModel):
+    description: str = Field(..., min_length=1, max_length=500)
+
+class MLCategorizeResponse(BaseModel):
+    predicted_category: str
+    confidence_score: float
+    is_flagged: bool
+
+class CSVImportResponse(BaseModel):
+    message: str
+    total_parsed: int
+    total_imported: int

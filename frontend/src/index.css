@@ -1,25 +1,63 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit', sans-serif;
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-500: #22c55e;
-  --color-primary-600: #16a34a;
-  --color-primary-700: #15803d;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-primary: #006a39;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #008649;
+  --color-on-primary-container: #f6fff4;
+  --color-secondary: #0058be;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #2170e4;
+  --color-on-secondary-container: #fefcff;
+  --color-tertiary: #a23546;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #c24d5e;
+  --color-on-tertiary-container: #fffbff;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-background: #f9f9ff;
+  --color-on-background: #141b2b;
+  
+  --color-surface: #f9f9ff;
+  --color-on-surface: #141b2b;
+  --color-surface-dim: #d3daef;
+  --color-surface-bright: #f9f9ff;
+  --color-surface-lowest: #ffffff;
+  --color-surface-low: #f1f3ff;
+  --color-surface-container: #e9edff;
+  --color-surface-high: #e1e8fd;
+  --color-surface-highest: #dce2f7;
+  --color-surface-variant: #dce2f7;
+
+  --color-outline: #6d7a6f;
+  --color-outline-variant: #bdcabc;
+
+  --radius-sm: 0.25rem;
+  --radius-default: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #0b0f19;
-  color: #f3f4f6;
+  background-color: var(--color-background);
+  color: var(--color-on-background);
   min-height: 100vh;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
+  font-family: var(--font-sans);
 }

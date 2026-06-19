@@ -21,6 +21,12 @@ app.add_middleware(
 # Attach routes
 app.include_router(api_router)
 
+from app.core.ml import load_model
+
+@app.on_event("startup")
+async def startup_event():
+    load_model()
+
 @app.get("/")
 async def health_check():
     return {

@@ -1,4 +1,4 @@
-# Personal Finance Tracker with AI-Powered Budgeting Insights
+# Personal Finance Tracker with AI-Powered Budgeting Insights (Naira AI)
 
 ## Overview
 A full-stack web application that enables users to track income and expenses, automatically categorise transactions using NLP, and receive AI-powered personalised budgeting recommendations.

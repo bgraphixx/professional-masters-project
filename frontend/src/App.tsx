@@ -11,7 +11,13 @@ import {
   TrendingUp, 
   PieChart, 
   Sparkles,
-  Info
+  Info,
+  Plus,
+  Upload,
+  Trash2,
+  Filter,
+  FileSpreadsheet,
+  X
 } from 'lucide-react';
 import './App.css';
 
@@ -27,6 +33,27 @@ interface UserProfile {
   created_at: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  type: string;
+  is_default: boolean;
+}
+
+interface Transaction {
+  id: string;
+  user_id: string;
+  category_id: string | null;
+  amount: number;
+  transaction_date: string;
+  description: string;
+  type: string;
+  source: string;
+  confidence_score: number;
+  is_flagged: boolean;
+  category: Category | null;
+}
+
 function App() {
   const [view, setView] = useState<'login' | 'register' | 'dashboard'>('login');
   
@@ -39,10 +66,32 @@ function App() {
   
   // Common states
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [systemStatus, setSystemStatus] = useState<'connected' | 'checking' | 'failed'>('checking');
+
+  // Modals state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Manual Transaction Form state
+  const [txDesc, setTxDesc] = useState('');
+  const [txAmount, setTxAmount] = useState('');
+  const [txType, setTxType] = useState<'income' | 'expense'>('expense');
+  const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
+  const [txCategoryId, setTxCategoryId] = useState('');
+
+  // Filters state
+  const [filterType, setFilterType] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('');
+
+  // CSV statement import state
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [importSummary, setImportSummary] = useState('');
 
   // Verify backend health and check if user is already logged in on mount
   useEffect(() => {
@@ -79,13 +128,55 @@ function App() {
     }
   };
 
+  // Fetch transactions and categories when logged in
+  useEffect(() => {
+    if (view === 'dashboard') {
+      fetchTransactions();
+      fetchCategories();
+    }
+  }, [view, filterType, filterCategoryId]);
+
+  const fetchTransactions = async () => {
+    try {
+      let url = `${API_URL}/transactions`;
+      const queryParams = new URLSearchParams();
+      if (filterType) queryParams.append('type', filterType);
+      if (filterCategoryId) queryParams.append('category_id', filterCategoryId);
+      
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+
+      const res = await fetch(url, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data);
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_URL}/transactions/categories`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
     if (!consentGiven) {
-      setErrorMessage('You must give consent under the NDPA (2023) to register.');
+      setErrorMessage('You must give consent to register.');
       return;
     }
 
@@ -162,6 +253,7 @@ function App() {
         credentials: 'include'
       });
       setUser(null);
+      setTransactions([]);
       setEmail('');
       setPassword('');
       setFullName('');
@@ -170,6 +262,150 @@ function App() {
       setView('login');
     } catch (err) {
       console.error('Logout error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transactions operations
+  const handleAddTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const payload: any = {
+        description: txDesc,
+        amount: parseFloat(txAmount),
+        type: txType,
+        transaction_date: txDate,
+        source: 'manual'
+      };
+      if (txCategoryId) {
+        payload.category_id = txCategoryId;
+      }
+
+      const res = await fetch(`${API_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Error adding transaction');
+      }
+
+      // Reset form & close modal
+      setTxDesc('');
+      setTxAmount('');
+      setTxType('expense');
+      setTxDate(new Date().toISOString().split('T')[0]);
+      setTxCategoryId('');
+      setIsAddModalOpen(false);
+      
+      fetchTransactions();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateCategory = async (txId: string, categoryId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/transactions/${txId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ category_id: categoryId || null })
+      });
+      if (res.ok) {
+        fetchTransactions();
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || 'Failed to update category');
+      }
+    } catch (err) {
+      console.error('Error updating category:', err);
+    }
+  };
+
+  const handleDeleteTransaction = async (txId: string) => {
+    if (!confirm('Are you sure you want to delete this transaction?')) return;
+    try {
+      const res = await fetch(`${API_URL}/transactions/${txId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        fetchTransactions();
+      }
+    } catch (err) {
+      console.error('Error deleting transaction:', err);
+    }
+  };
+
+  // CSV Drag and drop imports
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragging(true);
+    } else if (e.type === "dragleave") {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.name.endsWith('.csv')) {
+        setCsvFile(file);
+      } else {
+        alert('Please drop a valid CSV statement file.');
+      }
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setCsvFile(e.target.files[0]);
+    }
+  };
+
+  const handleImportCSV = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!csvFile) return;
+
+    setLoading(true);
+    setImportSummary('');
+    const formData = new FormData();
+    formData.append('file', csvFile);
+
+    try {
+      const res = await fetch(`${API_URL}/transactions/import-csv`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'CSV importing failed');
+      }
+
+      setImportSummary(data.message);
+      setCsvFile(null);
+      fetchTransactions();
+      setTimeout(() => {
+        setIsImportModalOpen(false);
+        setImportSummary('');
+      }, 2500);
+    } catch (err: any) {
+      alert(err.message);
     } finally {
       setLoading(false);
     }
@@ -184,125 +420,118 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#090d1a] flex flex-col items-center justify-center p-4">
-      {/* Premium Background Blurry Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-emerald-500/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-teal-500/10 rounded-full blur-[120px]" />
-
-      {/* Header / Brand */}
-      <div className="absolute top-6 left-6 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Wallet className="w-5 h-5 text-[#090d1a]" />
+    <div className="min-h-screen bg-background flex flex-col items-center justify-start p-6 text-on-background relative">
+      {/* Header Logo */}
+      <div className="w-full max-w-[1000px] flex justify-between items-center mb-10 mt-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-default bg-primary flex items-center justify-center shadow-[0_4px_10px_rgba(0,106,57,0.15)]">
+            <Wallet className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-sans font-bold text-xl tracking-tight text-on-background">
+            Naira<span className="text-primary">AI</span>
+          </span>
         </div>
-        <span className="font-heading font-bold text-xl tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-          NairaFlow<span className="text-emerald-500">.ai</span>
-        </span>
+
+        {/* Sync Status indicator */}
+        <div className="flex items-center gap-2 text-xs bg-surface-lowest border border-outline-variant px-3.5 py-1.5 rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.01)]">
+          <span className={`w-2 h-2 rounded-full ${
+            systemStatus === 'connected' ? 'bg-primary' : 
+            systemStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-error'
+          }`} />
+          <span className="font-mono text-label-sm text-slate-500 uppercase">
+            STATUS: {systemStatus === 'connected' ? 'ONLINE' : systemStatus === 'checking' ? 'SYNCING' : 'OFFLINE'}
+          </span>
+        </div>
       </div>
 
-      {/* Connection Status indicator */}
-      <div className="absolute top-6 right-6 flex items-center gap-2 text-xs bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-full backdrop-blur-md">
-        <span className={`w-2.5 h-2.5 rounded-full ${
-          systemStatus === 'connected' ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' : 
-          systemStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-red-500 shadow-md shadow-red-500/50'
-        }`} />
-        <span className="text-slate-400">
-          Backend: {systemStatus === 'connected' ? 'Connected' : systemStatus === 'checking' ? 'Checking status...' : 'Disconnected'}
-        </span>
-      </div>
-
-      {/* Login & Register Views */}
+      {/* Auth Forms */}
       {view !== 'dashboard' && (
-        <div className="w-full max-w-md mt-16 mb-8 z-10">
-          {/* Main Card */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl shadow-2xl p-8 backdrop-blur-xl transition-all duration-300">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-heading font-extrabold bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 bg-clip-text text-transparent">
-                {view === 'login' ? 'Welcome Back' : 'Create Account'}
+        <div className="w-full max-w-[420px] my-auto transition-all">
+          <div className="bg-surface-lowest border border-outline-variant rounded-lg shadow-[0_4px_15px_rgba(0,0,0,0.02)] p-8 transition-shadow duration-300 hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)]">
+            <div className="text-left mb-6">
+              <h2 className="text-2xl font-semibold tracking-tight text-on-background">
+                {view === 'login' ? 'Sign In' : 'Create Account'}
               </h2>
-              <p className="text-sm text-slate-400 mt-2">
-                {view === 'login' ? 'Manage your personal finances with AI' : 'Start your journey to smarter budgeting'}
+              <p className="text-sm text-slate-500 mt-1">
+                {view === 'login' ? 'Access your personal budgeting dashboard.' : 'Start tracking income and expenses with AI.'}
               </p>
             </div>
 
-            {/* Error and Success Banners */}
+            {/* Error and Success banners */}
             {errorMessage && (
-              <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2.5 animate-fadeIn">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <span>{errorMessage}</span>
+              <div className="mb-5 p-4 rounded-default bg-error-container/10 border border-error text-error text-sm flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="font-sans font-medium">{errorMessage}</span>
               </div>
             )}
             {successMessage && (
-              <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-start gap-2.5 animate-fadeIn">
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <span>{successMessage}</span>
+              <div className="mb-5 p-4 rounded-default bg-primary-container/10 border border-primary-container text-primary text-sm flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="font-sans font-medium">{successMessage}</span>
               </div>
             )}
 
-            <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-5">
+            <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-4">
               {view === 'register' && (
                 <>
-                  {/* Full Name */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Full Name</label>
+                  <div className="space-y-1">
+                    <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Full Name</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                        <UserIcon className="w-5 h-5" />
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <UserIcon className="w-4 h-4" />
                       </div>
                       <input
                         type="text"
                         required
-                        placeholder="Chidi Kafunze"
+                        placeholder="e.g. Babajide Alao"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl py-3 pl-11 pr-4 text-white text-sm outline-none transition-colors"
+                        className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 pl-10 pr-4 text-on-background text-sm outline-none transition-all"
                       />
                     </div>
                   </div>
 
-                  {/* Monthly Income */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Monthly Income (₦)</label>
+                  <div className="space-y-1">
+                    <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Monthly Income (₦)</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-medium text-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-sans font-semibold text-sm">
                         ₦
                       </div>
                       <input
                         type="number"
                         required
-                        placeholder="350000"
+                        placeholder="e.g. 450000"
                         value={monthlyIncome}
                         onChange={(e) => setMonthlyIncome(e.target.value)}
-                        className="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl py-3 pl-11 pr-4 text-white text-sm outline-none transition-colors"
+                        className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 pl-10 pr-4 text-on-background text-sm outline-none transition-all"
                       />
                     </div>
                   </div>
                 </>
               )}
 
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Email Address</label>
+              <div className="space-y-1">
+                <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Email Address</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <Mail className="w-5 h-5" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
                   </div>
                   <input
                     type="email"
                     required
-                    placeholder="chidi@example.com"
+                    placeholder="e.g. jide@naira.ai"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl py-3 pl-11 pr-4 text-white text-sm outline-none transition-colors"
+                    className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 pl-10 pr-4 text-on-background text-sm outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Password</label>
+              <div className="space-y-1">
+                <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Password</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <Lock className="w-5 h-5" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
                   </div>
                   <input
                     type="password"
@@ -310,20 +539,19 @@ function App() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl py-3 pl-11 pr-4 text-white text-sm outline-none transition-colors"
+                    className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 pl-10 pr-4 text-on-background text-sm outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* NDPA Consent (Register only) */}
               {view === 'register' && (
-                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800/80 space-y-3">
+                <div className="p-4 rounded-default bg-surface-low border border-outline-variant/60 space-y-3">
                   <div className="flex gap-2.5">
-                    <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                    <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-slate-200">NDPA (2023) Compliance Consent</h4>
-                      <p className="text-[11px] leading-relaxed text-slate-400 mt-1">
-                        To categorize your transactions and generate AI-powered budgeting suggestions, we securely process transaction data. You have rights to data deletion and access under Nigeria Data Protection Act regulations.
+                      <h4 className="text-xs font-bold text-on-background">Data Consent</h4>
+                      <p className="text-[11px] leading-relaxed text-slate-600 mt-1">
+                        We analyze your transaction history to automatically categorize expenses and generate custom budget recommendations. You can view or delete your history at any time.
                       </p>
                     </div>
                   </div>
@@ -332,51 +560,49 @@ function App() {
                       type="checkbox"
                       checked={consentGiven}
                       onChange={(e) => setConsentGiven(e.target.checked)}
-                      className="rounded border-slate-800 text-emerald-500 focus:ring-emerald-500/20 bg-slate-950 w-4 h-4 cursor-pointer"
+                      className="rounded border-outline-variant text-primary focus:ring-primary/20 bg-surface-lowest w-4 h-4 cursor-pointer"
                     />
-                    <span className="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 select-none">
-                      I authorize transaction processing for AI budgeting
+                    <span className="text-[11px] font-medium text-primary hover:text-primary-container select-none">
+                      I consent to analyzing my transactions for budgeting insights
                     </span>
                   </label>
                 </div>
               )}
 
-              {/* Submit button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-[#090d1a] font-bold text-sm rounded-xl cursor-pointer hover:shadow-lg hover:shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full py-3 bg-primary hover:bg-[#00522b] text-white font-bold text-sm rounded-default cursor-pointer active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none mt-2 shadow-[0_2px_5px_rgba(0,106,57,0.1)]"
               >
                 {loading ? (
-                  <span className="border-2 border-[#090d1a] border-t-transparent w-4 h-4 rounded-full animate-spin" />
+                  <span className="border-2 border-white border-t-transparent w-4 h-4 rounded-full animate-spin" />
                 ) : view === 'login' ? (
-                  'Login to Workspace'
+                  'Sign In'
                 ) : (
-                  'Create My Account'
+                  'Create Account'
                 )}
               </button>
             </form>
 
-            {/* View switcher */}
-            <div className="text-center mt-6 text-sm text-slate-400">
+            <div className="text-center mt-6 text-sm text-slate-500">
               {view === 'login' ? (
                 <span>
-                  Don't have an account?{' '}
+                  New to NairaAI?{' '}
                   <button 
                     onClick={() => setView('register')} 
-                    className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                    className="text-primary hover:text-[#00522b] font-bold transition-colors cursor-pointer"
                   >
                     Register
                   </button>
                 </span>
               ) : (
                 <span>
-                  Already have an account?{' '}
+                  Already registered?{' '}
                   <button 
                     onClick={() => setView('login')} 
-                    className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                    className="text-primary hover:text-[#00522b] font-bold transition-colors cursor-pointer"
                   >
-                    Log In
+                    Sign In
                   </button>
                 </span>
               )}
@@ -385,116 +611,454 @@ function App() {
         </div>
       )}
 
-      {/* Dashboard View */}
+      {/* Authed Dashboard Layout */}
       {view === 'dashboard' && user && (
-        <div className="w-full max-w-4xl mt-20 mb-8 z-10 space-y-6 animate-fadeIn">
-          {/* Top Panel card */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="w-full max-w-[1000px] z-10 space-y-6">
+          
+          {/* Header Panel card */}
+          <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Account Owner</p>
-              <h2 className="text-2xl font-heading font-extrabold text-white">{user.full_name}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{user.email}</p>
+              <p className="font-mono text-label-sm uppercase tracking-wider text-slate-500">Account Owner</p>
+              <h2 className="text-2xl font-bold tracking-tight text-on-background mt-0.5">{user.full_name}</h2>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">{user.email}</p>
             </div>
             
-            <div className="bg-slate-950/40 border border-slate-800/50 p-4 rounded-xl flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+            <div className="bg-surface-low border border-outline-variant/60 p-4 rounded-default flex items-center gap-3">
+              <div className="w-10 h-10 rounded-default bg-primary-container/20 flex items-center justify-center text-primary font-bold text-lg">
                 ₦
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly Budget Income</p>
-                <h3 className="text-lg font-heading font-extrabold text-white">{formatNaira(user.monthly_income)}</h3>
+                <p className="font-mono text-label-sm uppercase tracking-wider text-slate-500">Monthly Budget Income</p>
+                <h3 className="text-2xl font-medium tracking-tight text-on-background font-sans mt-0.5">{formatNaira(user.monthly_income)}</h3>
               </div>
             </div>
 
             <button
               onClick={handleLogout}
               disabled={loading}
-              className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 px-4 py-2.5 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 transition-colors self-end md:self-auto"
+              className="bg-surface-lowest hover:bg-slate-50 border border-outline-variant text-slate-700 hover:text-slate-900 px-4 py-2.5 rounded-default font-bold text-xs cursor-pointer flex items-center gap-2 transition-colors self-end sm:self-auto"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Log Out</span>
+              <LogOut className="w-4 h-4 text-slate-500" />
+              <span>Sign Out</span>
             </button>
           </div>
 
-          {/* Grid Area */}
+          {/* Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Column 1: Verification status */}
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl space-y-4">
-              <h3 className="text-sm font-heading font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>NDPA Consent Status</span>
+            {/* Consent Status Card */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-primary" />
+                <span>Data Consent Status</span>
               </h3>
               
-              <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/50">
-                <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Authorized</span>
+              <div className="space-y-3 bg-surface-low p-4 rounded-default border border-outline-variant/50">
+                <div className="inline-flex items-center gap-1.5 bg-[#e2f9ec] text-[#006a39] text-xs font-bold px-2.5 py-1 rounded-full">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Consent Active</span>
                 </div>
                 
-                <p className="text-[11px] leading-relaxed text-slate-400">
-                  Data processing consent was successfully captured and timestamped.
+                <p className="text-[11px] leading-relaxed text-slate-600">
+                  You have granted permission to analyze your transaction history to provide customized budgeting insights.
                 </p>
 
-                <div className="border-t border-slate-800/80 pt-2.5 space-y-1">
-                  <div className="flex justify-between text-[10px] text-slate-500">
-                    <span>Consent Active:</span>
-                    <span className="text-slate-300 font-semibold">{user.consent_given ? 'Yes' : 'No'}</span>
+                <div className="border-t border-outline-variant/40 pt-2.5 space-y-1.5 font-mono text-label-sm text-slate-500">
+                  <div className="flex justify-between">
+                    <span>Consent Status:</span>
+                    <span className="text-slate-800 font-semibold">{user.consent_given ? 'ACTIVE' : 'INACTIVE'}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-500">
-                    <span>Timestamp:</span>
-                    <span className="text-slate-300 font-semibold max-w-[140px] truncate">
-                      {user.consent_date ? new Date(user.consent_date).toLocaleString() : 'N/A'}
+                  <div className="flex justify-between">
+                    <span>Last Updated:</span>
+                    <span className="text-slate-800 font-semibold max-w-[120px] truncate">
+                      {user.consent_date ? new Date(user.consent_date).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Column 2: Dashboard Overview Placeholder */}
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-xl space-y-4 md:col-span-2">
-              <h3 className="text-sm font-heading font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-500" />
-                <span>Initial Workspace Seeded</span>
+            {/* Core Status Card */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4 md:col-span-2">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span>Infrastructure & ML Service</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-slate-950/40 border border-slate-800/50 p-4 rounded-xl space-y-2">
+                <div className="bg-surface-low border border-outline-variant/50 p-4 rounded-default space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400">Baseline Categorization</span>
-                    <PieChart className="w-4 h-4 text-teal-400" />
+                    <span className="text-xs font-bold text-slate-700">Classification Model</span>
+                    <PieChart className="w-4 h-4 text-secondary" />
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Default categories seeded and Logistic Regression ML model successfully initialized in backend context.
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Automated transaction categorisation classifier active (TF-IDF + Logistic Regression).
                   </p>
                 </div>
 
-                <div className="bg-slate-950/40 border border-slate-800/50 p-4 rounded-xl space-y-2">
+                <div className="bg-surface-low border border-outline-variant/50 p-4 rounded-default space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400">AI Recommendations</span>
-                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-slate-700">Categorisation Fallbacks</span>
+                    <TrendingUp className="w-4 h-4 text-primary" />
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Dynamic recommendations module configured to analyze overspending thresholds (80% and 100%).
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Fallback rule-based keyword triggers configured for low-confidence models (below 60%).
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  <strong className="text-emerald-400 font-bold">Sprint 1 Complete:</strong> Authentication, User Management, database schemas, and baseline ML models have been scaffolded and are online. Ready to deploy backend database migrations.
+              <div className="p-4 rounded-default bg-primary-container/10 border border-primary-container/20 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <strong className="text-primary font-bold">Sprint 2 Online:</strong> Add manual inputs, edit predicted categories directly in the rows, or drag and drop bank statement CSV files to trigger the batch auto-categorization pipeline.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Transactions Workspace */}
+          <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-6">
+            
+            {/* Toolbar Panel */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-surface-container pb-4">
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-on-background">Transaction Management</h3>
+                <p className="text-xs text-slate-500">Track and review automated classifications.</p>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                {/* Type Filter */}
+                <div className="relative">
+                  <select 
+                    value={filterType} 
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="bg-surface-lowest border border-outline-variant text-slate-700 text-xs rounded-default py-2 pl-3 pr-8 outline-none appearance-none cursor-pointer focus:border-secondary"
+                  >
+                    <option value="">All Types</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                  </select>
+                  <Filter className="w-3 h-3 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
+                </div>
+
+                {/* Category Filter */}
+                <div className="relative">
+                  <select 
+                    value={filterCategoryId} 
+                    onChange={(e) => setFilterCategoryId(e.target.value)}
+                    className="bg-surface-lowest border border-outline-variant text-slate-700 text-xs rounded-default py-2 pl-3 pr-8 outline-none appearance-none cursor-pointer focus:border-secondary"
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <Filter className="w-3 h-3 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
+                </div>
+
+                {/* Add Transaction Button */}
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-primary hover:bg-[#00522b] text-white px-3.5 py-2 rounded-default text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-[0_2px_4px_rgba(0,106,57,0.1)] ml-auto md:ml-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Manual</span>
+                </button>
+
+                {/* Import Statement Button */}
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="bg-surface-lowest hover:bg-slate-50 border border-outline-variant text-slate-700 px-3.5 py-2 rounded-default text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                >
+                  <Upload className="w-4 h-4 text-slate-500" />
+                  <span>Import Statement</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Transactions Flat List Table */}
+            <div className="overflow-x-auto">
+              {transactions.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 space-y-2">
+                  <FileSpreadsheet className="w-12 h-12 mx-auto text-slate-300" />
+                  <p className="text-sm font-medium">No transactions found.</p>
+                  <p className="text-xs">Click "Add Manual" or "Import Statement" to seed details.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-outline-variant text-slate-400 text-[10px] font-mono uppercase tracking-wider">
+                      <th className="pb-3 font-semibold">Date</th>
+                      <th className="pb-3 font-semibold">Description</th>
+                      <th className="pb-3 font-semibold">Source</th>
+                      <th className="pb-3 font-semibold">Category (ML Classification)</th>
+                      <th className="pb-3 font-semibold text-right">Amount</th>
+                      <th className="pb-3 font-semibold text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx) => (
+                      <tr key={tx.id} className="border-b border-surface-container/60 hover:bg-slate-50/40 transition-colors">
+                        {/* Date */}
+                        <td className="py-4 text-sm font-mono text-slate-600">
+                          {tx.transaction_date}
+                        </td>
+
+                        {/* Description */}
+                        <td className="py-4 text-sm font-medium text-on-background max-w-[240px] truncate">
+                          {tx.description}
+                        </td>
+
+                        {/* Source */}
+                        <td className="py-4">
+                          <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
+                            tx.source === 'csv' 
+                              ? 'bg-secondary-container/10 text-secondary border border-secondary/10' 
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            {tx.source}
+                          </span>
+                        </td>
+
+                        {/* Category Dropdown & Warnings */}
+                        <td className="py-4 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={tx.category_id || ''}
+                              onChange={(e) => handleUpdateCategory(tx.id, e.target.value)}
+                              className="bg-transparent hover:bg-surface-low border border-transparent hover:border-outline-variant text-xs text-slate-800 font-semibold rounded py-1 px-1.5 outline-none transition-all cursor-pointer focus:bg-surface-lowest focus:border-secondary"
+                            >
+                              <option value="">Uncategorised</option>
+                              {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            {/* Low Confidence Warning Icon */}
+                            {tx.is_flagged && (
+                              <div className="group relative">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20 leading-relaxed font-sans">
+                                  Low Confidence prediction ({(tx.confidence_score * 100).toFixed(0)}%). Review category.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Amount */}
+                        <td className={`py-4 text-right font-mono font-medium text-sm ${
+                          tx.type === 'income' ? 'text-primary' : 'text-slate-800'
+                        }`}>
+                          {tx.type === 'income' ? '+' : '-'}{formatNaira(tx.amount)}
+                        </td>
+
+                        {/* Delete action */}
+                        <td className="py-4 text-center">
+                          <button
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            className="text-slate-400 hover:text-error p-1 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
 
           </div>
         </div>
       )}
 
-      {/* Footer copyright */}
-      <span className="text-[10px] text-slate-600 mt-8 mb-4">
-        © 2026 NairaFlow.ai. Complying with Nigeria Data Protection Commission (NDPC) guidelines.
+      {/* Add Manual Transaction Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface-lowest border border-outline-variant rounded-lg max-w-md w-full p-6 shadow-xl animate-fadeIn relative">
+            <button 
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-on-background mb-4">Add Manual Transaction</h3>
+
+            <form onSubmit={handleAddTransaction} className="space-y-4">
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Description</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Bus fare to Ikeja"
+                  value={txDesc}
+                  onChange={(e) => setTxDesc(e.target.value)}
+                  className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 px-3 text-on-background text-sm outline-none transition-all"
+                />
+              </div>
+
+              {/* Amount & Type Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Amount (₦)</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="2500"
+                    value={txAmount}
+                    onChange={(e) => setTxAmount(e.target.value)}
+                    className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 px-3 text-on-background text-sm outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Type</label>
+                  <select
+                    value={txType}
+                    onChange={(e) => setTxType(e.target.value as 'income' | 'expense')}
+                    className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 px-3 text-on-background text-sm outline-none transition-all cursor-pointer"
+                  >
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Date & Pre-selected Category Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={txDate}
+                    onChange={(e) => setTxDate(e.target.value)}
+                    className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 px-3 text-on-background text-sm outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Override Category</label>
+                  <select
+                    value={txCategoryId}
+                    onChange={(e) => setTxCategoryId(e.target.value)}
+                    className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 px-3 text-on-background text-sm outline-none transition-all cursor-pointer"
+                  >
+                    <option value="">Auto-categorize (ML)</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-primary hover:bg-[#00522b] text-white font-bold text-sm rounded-default cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 mt-4 shadow-[0_2px_4px_rgba(0,106,57,0.1)]"
+              >
+                {loading ? (
+                  <span className="border-2 border-white border-t-transparent w-4 h-4 rounded-full animate-spin" />
+                ) : (
+                  'Create Transaction'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface-lowest border border-outline-variant rounded-lg max-w-md w-full p-6 shadow-xl animate-fadeIn relative">
+            <button 
+              onClick={() => setIsImportModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-on-background mb-1">Import Bank Statement</h3>
+            <p className="text-xs text-slate-500 mb-4">Support CSV statements (GTBank, Opay, Access, etc.).</p>
+
+            {importSummary ? (
+              <div className="p-4 rounded-default bg-primary-container/10 border border-primary-container text-primary text-sm flex items-start gap-2.5">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <span className="font-medium">{importSummary}</span>
+              </div>
+            ) : (
+              <form onSubmit={handleImportCSV} className="space-y-4">
+                {/* Drag and Drop Zone */}
+                <div
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                  className={`w-full min-h-[160px] border-2 border-dashed rounded-default flex flex-col items-center justify-center p-4 transition-all cursor-pointer ${
+                    isDragging 
+                      ? 'border-primary bg-primary-container/5' 
+                      : csvFile 
+                      ? 'border-secondary bg-surface-low' 
+                      : 'border-outline-variant hover:border-slate-400 bg-surface-lowest'
+                  }`}
+                >
+                  <input
+                    type="file"
+                    id="csv-file-input"
+                    accept=".csv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label htmlFor="csv-file-input" className="w-full h-full flex flex-col items-center justify-center cursor-pointer space-y-2">
+                    <FileSpreadsheet className={`w-10 h-10 ${csvFile ? 'text-secondary' : 'text-slate-400'}`} />
+                    <div className="text-center">
+                      {csvFile ? (
+                        <p className="text-xs font-bold text-slate-800">{csvFile.name}</p>
+                      ) : (
+                        <>
+                          <p className="text-xs font-semibold text-slate-700">Drag & Drop bank statement CSV here</p>
+                          <p className="text-[10px] text-slate-400 mt-1">or click to browse local files</p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+
+                <div className="p-3 bg-surface-low rounded border border-outline-variant/60">
+                  <h4 className="text-[10px] font-bold text-slate-700 uppercase font-mono mb-1">Expected CSV Format:</h4>
+                  <p className="text-[9px] text-slate-500 leading-relaxed font-mono">
+                    Headers should contain: Date, Description (or Narration), and Amount (or separate Debit/Credit columns).
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || !csvFile}
+                  className="w-full py-3 bg-primary hover:bg-[#00522b] text-white font-bold text-sm rounded-default cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_2px_4px_rgba(0,106,57,0.1)]"
+                >
+                  {loading ? (
+                    <span className="border-2 border-white border-t-transparent w-4 h-4 rounded-full animate-spin" />
+                  ) : (
+                    'Upload & Auto-Categorize'
+                  )}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <span className="text-[10px] text-slate-400 mt-auto mb-4 font-mono">
+        NairaAI securely processes your financial data to help you save and budget.
       </span>
     </div>
   );
