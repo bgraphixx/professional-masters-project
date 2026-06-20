@@ -93,3 +93,11 @@ class CSVImportResponse(BaseModel):
     message: str
     total_parsed: int
     total_imported: int
+
+class MLTrainResponse(BaseModel):
+    status: str
+    default_samples: int
+    user_samples: int
+    total_samples: int
+    message: str
+

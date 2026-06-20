@@ -71,3 +71,40 @@ def predict_category(description: str) -> Tuple[str, float, bool]:
 
     # 3. Default fallback
     return "Food & Groceries", 0.40, True
+
+def retrain_model(user_labeled_data: list) -> Tuple[int, int]:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+    from app.scripts.seed import MOCK_TRANSACTIONS_DATA
+
+    # Extract descriptions and categories from mock data and user data
+    descriptions = [item[0] for item in MOCK_TRANSACTIONS_DATA] + [item[0] for item in user_labeled_data]
+    categories = [item[1] for item in MOCK_TRANSACTIONS_DATA] + [item[1] for item in user_labeled_data]
+
+    # Create the text classification pipeline
+    pipeline = Pipeline([
+        ('vectorizer', TfidfVectorizer(lowercase=True, ngram_range=(1, 2))),
+        ('classifier', LogisticRegression(C=1.0, max_iter=1000))
+    ])
+
+    # Train model
+    pipeline.fit(descriptions, categories)
+
+    # Resolve absolute path relative to this file
+    current_dir = os.path.dirname(os.path.dirname(__file__))
+    model_path = os.path.join(current_dir, "ml", "artifacts", "model.joblib")
+
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+
+    # Persist model pipeline
+    joblib.dump(pipeline, model_path)
+    print(f"Successfully retrained and saved model pipeline to: {model_path}")
+
+    # Reload the model in-memory
+    global _pipeline
+    _pipeline = pipeline
+
+    return len(MOCK_TRANSACTIONS_DATA), len(user_labeled_data)
+

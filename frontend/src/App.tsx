@@ -9,7 +9,7 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   TrendingUp, 
-  PieChart, 
+  PieChart as PieChartIcon, 
   Sparkles,
   Info,
   Plus,
@@ -17,8 +17,25 @@ import {
   Trash2,
   Filter,
   FileSpreadsheet,
-  X
+  X,
+  TrendingDown,
+  Percent,
+  Coins
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from 'recharts';
 import './App.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -53,6 +70,8 @@ interface Transaction {
   is_flagged: boolean;
   category: Category | null;
 }
+
+const COLORS = ['#006a39', '#0058be', '#a23546', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#4b5563'];
 
 function App() {
   const [view, setView] = useState<'login' | 'register' | 'dashboard'>('login');
@@ -92,6 +111,17 @@ function App() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importSummary, setImportSummary] = useState('');
+
+  // ML Retraining state
+  const [mlStats, setMlStats] = useState<{
+    default_samples: number;
+    user_samples: number;
+    total_samples: number;
+    last_trained?: string;
+  } | null>(null);
+  const [mlTraining, setMlTraining] = useState(false);
+  const [pendingRetrain, setPendingRetrain] = useState(false);
+
 
   // Verify backend health and check if user is already logged in on mount
   useEffect(() => {
@@ -320,6 +350,7 @@ function App() {
         body: JSON.stringify({ category_id: categoryId || null })
       });
       if (res.ok) {
+        setPendingRetrain(true);
         fetchTransactions();
       } else {
         const errData = await res.json();
@@ -327,6 +358,37 @@ function App() {
       }
     } catch (err) {
       console.error('Error updating category:', err);
+    }
+  };
+
+  const handleRetrainModel = async () => {
+    setMlTraining(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    try {
+      const res = await fetch(`${API_URL}/ml/train`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to retrain model');
+      }
+      setMlStats({
+        default_samples: data.default_samples,
+        user_samples: data.user_samples,
+        total_samples: data.total_samples,
+        last_trained: new Date().toLocaleTimeString()
+      });
+      setPendingRetrain(false);
+      setSuccessMessage('AI classification model retrained successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      fetchTransactions(); // Refresh predictions/classifications
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An error occurred during model retraining.');
+      setTimeout(() => setErrorMessage(''), 4000);
+    } finally {
+      setMlTraining(false);
     }
   };
 
@@ -419,10 +481,73 @@ function App() {
     }).format(amount);
   };
 
+  // Compute reactive dashboard stats
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalExpense = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const netSavings = totalIncome - totalExpense;
+
+  const savingsRate = totalIncome > 0 
+    ? Math.max(0, Math.round(((totalIncome - totalExpense) / totalIncome) * 100)) 
+    : 0;
+
+  // Prepare chart data matrices chronologically
+  const sortedTxs = [...transactions].sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
+
+  // 1. Daily aggregates for BarChart
+  const dailyMap: { [date: string]: { date: string; Income: number; Expense: number } } = {};
+  sortedTxs.forEach(t => {
+    const d = t.transaction_date;
+    if (!dailyMap[d]) {
+      dailyMap[d] = { date: d, Income: 0, Expense: 0 };
+    }
+    if (t.type === 'income') {
+      dailyMap[d].Income += t.amount;
+    } else {
+      dailyMap[d].Expense += t.amount;
+    }
+  });
+  const dailyData = Object.values(dailyMap);
+
+  // 2. Category aggregates for PieChart (Donut)
+  const categoryMap: { [name: string]: number } = {};
+  transactions
+    .filter(t => t.type === 'expense')
+    .forEach(t => {
+      const catName = t.category ? t.category.name : 'Uncategorised';
+      categoryMap[catName] = (categoryMap[catName] || 0) + t.amount;
+    });
+  const categoryData = Object.entries(categoryMap).map(([name, value]) => ({
+    name,
+    value
+  }));
+
+  // 3. Savings trend line over dates (cumulative net balances)
+  const balanceChangeMap: { [date: string]: number } = {};
+  sortedTxs.forEach(t => {
+    const d = t.transaction_date;
+    const change = t.type === 'income' ? t.amount : -t.amount;
+    balanceChangeMap[d] = (balanceChangeMap[d] || 0) + change;
+  });
+  const sortedDates = Object.keys(balanceChangeMap).sort();
+  let cumulative = 0;
+  const savingsTrendData = sortedDates.map(d => {
+    cumulative += balanceChangeMap[d];
+    return {
+      date: d,
+      Savings: cumulative
+    };
+  });
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-start p-6 text-on-background relative">
       {/* Header Logo */}
-      <div className="w-full max-w-[1000px] flex justify-between items-center mb-10 mt-2">
+      <div className="w-full max-w-[1000px] flex justify-between items-center mb-8 mt-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-default bg-primary flex items-center justify-center shadow-[0_4px_10px_rgba(0,106,57,0.15)]">
             <Wallet className="w-4 h-4 text-white" />
@@ -643,9 +768,152 @@ function App() {
             </button>
           </div>
 
-          {/* Cards Grid */}
+          {/* Metric Cards Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Metric 1: Total Income */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-2">
+              <p className="font-mono text-label-sm uppercase tracking-wider text-slate-500">Total Income</p>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold font-mono text-primary truncate">{formatNaira(totalIncome)}</h3>
+                <TrendingUp className="w-5 h-5 text-primary shrink-0" />
+              </div>
+            </div>
+
+            {/* Metric 2: Total Expenses */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-2">
+              <p className="font-mono text-label-sm uppercase tracking-wider text-slate-500">Total Expenses</p>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold font-mono text-tertiary truncate">{formatNaira(totalExpense)}</h3>
+                <TrendingDown className="w-5 h-5 text-tertiary shrink-0" />
+              </div>
+            </div>
+
+            {/* Metric 3: Net Savings */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-2">
+              <p className="font-mono text-label-sm uppercase tracking-wider text-slate-500">Net Savings</p>
+              <div className="flex justify-between items-center">
+                <h3 className={`text-xl font-semibold font-mono truncate ${netSavings >= 0 ? 'text-secondary' : 'text-error'}`}>
+                  {formatNaira(netSavings)}
+                </h3>
+                <Coins className="w-5 h-5 text-secondary shrink-0" />
+              </div>
+            </div>
+
+            {/* Metric 4: Savings Rate */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-2">
+              <p className="font-mono text-label-sm uppercase tracking-wider text-slate-500">Savings Rate</p>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold font-mono text-on-background">{savingsRate}%</h3>
+                <div className="w-8 h-8 rounded-full bg-secondary-container/10 flex items-center justify-center text-secondary">
+                  <Percent className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row 1: Daily Trends & Category Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Consent Status Card */}
+            
+            {/* Chart A: Daily Income vs Expenses (Bar) */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4 md:col-span-2">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Daily Cash Flow</h3>
+                <span className="text-[10px] text-slate-400 font-mono">COMPARATIVE TREND</span>
+              </div>
+              
+              <div className="h-[240px] w-full text-xs">
+                {dailyData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-slate-400 font-mono text-[11px]">
+                    NO TRANSACTION DATA
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
+                      <Tooltip formatter={(value: any) => formatNaira(Number(value))} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
+                      <Legend verticalAlign="top" height={36} iconSize={10} wrapperStyle={{ fontFamily: 'Inter', fontSize: '11px' }} />
+                      <Bar dataKey="Income" fill="#006a39" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Expense" fill="#a23546" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Chart B: Category Breakdown (Donut) */}
+            <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Expense Breakdown</h3>
+                <span className="text-[10px] text-slate-400 font-mono">BY CATEGORY</span>
+              </div>
+              
+              <div className="h-[240px] w-full text-xs relative flex items-center justify-center">
+                {categoryData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-slate-400 font-mono text-[11px]">
+                    NO EXPENSE RECORDED
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={75}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {categoryData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => formatNaira(Number(value))} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+
+                {/* Donut Legend overlay */}
+                {categoryData.length > 0 && (
+                  <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-bold text-slate-400 font-mono uppercase">Total Spend</span>
+                    <span className="text-sm font-bold text-slate-800 font-mono">{formatNaira(totalExpense)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Charts Row 2: Savings Accumulation Curve */}
+          <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Savings Accumulation Curve</h3>
+              <span className="text-[10px] text-slate-400 font-mono">CUMULATIVE BALANCE</span>
+            </div>
+            
+            <div className="h-[200px] w-full text-xs">
+              {savingsTrendData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-slate-400 font-mono text-[11px]">
+                  NO TREND DATA AVAILABLE
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={savingsTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
+                    <Tooltip formatter={(value: any) => formatNaira(Number(value))} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
+                    <Line type="monotone" dataKey="Savings" stroke="#0058be" strokeWidth={2.5} activeDot={{ r: 6 }} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          {/* Infrastructure Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Consent Card */}
             <div className="bg-surface-lowest border border-outline-variant rounded-lg p-6 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-primary" />
@@ -684,11 +952,11 @@ function App() {
                 <span>Infrastructure & ML Service</span>
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-surface-low border border-outline-variant/50 p-4 rounded-default space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-700">Classification Model</span>
-                    <PieChart className="w-4 h-4 text-secondary" />
+                    <PieChartIcon className="w-4 h-4 text-secondary" />
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
                     Automated transaction categorisation classifier active (TF-IDF + Logistic Regression).
@@ -704,12 +972,67 @@ function App() {
                     Fallback rule-based keyword triggers configured for low-confidence models (below 60%).
                   </p>
                 </div>
+
+                {/* Retraining Console Panel */}
+                <div className="bg-surface-low border border-outline-variant/50 p-4 rounded-default flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">Self-Learning Stats</span>
+                      <Sparkles className={`w-4 h-4 ${pendingRetrain ? 'text-amber-500 animate-pulse' : 'text-primary'}`} />
+                    </div>
+                    <div className="mt-2 space-y-1 font-mono text-[10px] text-slate-500">
+                      <div className="flex justify-between">
+                        <span>Baseline Samples:</span>
+                        <span className="text-slate-800 font-bold">{mlStats ? mlStats.default_samples : 49}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>User Refinements:</span>
+                        <span className="text-slate-800 font-bold">
+                          {mlStats ? mlStats.user_samples : transactions.filter(t => t.category_id !== null).length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200/50 pt-1">
+                        <span>Total Trained:</span>
+                        <span className="text-slate-800 font-bold">
+                          {mlStats ? mlStats.total_samples : 49 + transactions.filter(t => t.category_id !== null).length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={handleRetrainModel}
+                    disabled={mlTraining}
+                    className={`w-full py-1.5 text-[10px] font-bold text-white rounded cursor-pointer transition-all active:scale-[0.98] ${
+                      pendingRetrain
+                        ? 'bg-amber-500 hover:bg-amber-600 shadow-[0_2px_4px_rgba(245,158,11,0.2)]'
+                        : 'bg-primary hover:bg-[#00522b] shadow-[0_2px_4px_rgba(0,106,57,0.15)]'
+                    } disabled:opacity-50 disabled:pointer-events-none`}
+                  >
+                    {mlTraining ? 'Retraining...' : 'Retrain AI Model'}
+                  </button>
+                </div>
               </div>
+
+              {pendingRetrain && (
+                <div className="p-3 rounded-default bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-700 leading-relaxed">
+                    <strong>Pending Corrections:</strong> You have customized transaction categories. Click <strong>"Retrain AI Model"</strong> above to incorporate these updates into the automated categorization engine!
+                  </p>
+                </div>
+              )}
+
+              {mlStats?.last_trained && (
+                <div className="text-[9px] text-slate-400 font-mono text-right">
+                  Last Retrained: {mlStats.last_trained}
+                </div>
+              )}
 
               <div className="p-4 rounded-default bg-primary-container/10 border border-primary-container/20 flex items-start gap-2.5">
                 <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-primary font-bold">Sprint 2 Online:</strong> Add manual inputs, edit predicted categories directly in the rows, or drag and drop bank statement CSV files to trigger the batch auto-categorization pipeline.
+                  <strong className="text-primary font-bold">Sprint 4 ML Active:</strong> Dynamic model retraining is online. The system learns continuously from your categorisation corrections by retraining the scikit-learn classifier on-the-fly.
                 </p>
               </div>
             </div>
@@ -1057,7 +1380,7 @@ function App() {
       )}
 
       {/* Footer */}
-      <span className="text-[10px] text-slate-400 mt-auto mb-4 font-mono">
+      <span className="text-[10px] text-slate-400 mt-8 mb-4 font-mono">
         NairaAI securely processes your financial data to help you save and budget.
       </span>
     </div>
