@@ -22,8 +22,6 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: EmailStr
-    full_name: float  # Wait, full_name is str, let's fix that!
-    # Ah, let's write full_name: str. Good catch!
     full_name: str
     monthly_income: float
     consent_given: bool
@@ -101,3 +99,44 @@ class MLTrainResponse(BaseModel):
     total_samples: int
     message: str
 
+# ── Budget Schemas ──────────────────────────────────────────────────────────
+
+class BudgetCreate(BaseModel):
+    category_id: uuid.UUID
+    limit_amount: float = Field(..., gt=0.0)
+    month: int = Field(..., ge=1, le=12)
+    year: int = Field(..., ge=2000, le=2100)
+
+class BudgetUpdate(BaseModel):
+    limit_amount: float = Field(..., gt=0.0)
+
+class BudgetResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    category_id: uuid.UUID
+    limit_amount: float
+    month: int
+    year: int
+    category: Optional[CategoryResponse] = None
+    # Computed fields populated by the endpoint
+    spent_amount: float = 0.0
+    percent_used: float = 0.0
+    is_breached: bool = False
+
+    class Config:
+        from_attributes = True
+
+# ── Insight Schemas ─────────────────────────────────────────────────────────
+
+class InsightResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    insight_type: str
+    message: str
+    related_category_id: Optional[uuid.UUID] = None
+    is_read: bool
+    created_at: datetime
+    category: Optional[CategoryResponse] = None
+
+    class Config:
+        from_attributes = True
