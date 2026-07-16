@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, date
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -9,8 +10,10 @@ class UserBase(BaseModel):
     monthly_income: float = Field(default=0.0, ge=0.0)
     consent_given: bool = Field(default=False)
 
+
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
+
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
@@ -19,7 +22,10 @@ class UserUpdate(BaseModel):
     monthly_income: Optional[float] = Field(default=None, ge=0.0)
     consent_given: Optional[bool] = None
 
+
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     email: EmailStr
     full_name: str
@@ -28,24 +34,24 @@ class UserResponse(BaseModel):
     consent_date: Optional[datetime] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+
 class MessageResponse(BaseModel):
     message: str
 
+
 class CategoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     name: str
     type: str
     is_default: bool
 
-    class Config:
-        from_attributes = True
 
 class TransactionCreate(BaseModel):
     amount: float = Field(..., gt=0.0)
@@ -55,6 +61,7 @@ class TransactionCreate(BaseModel):
     source: Optional[str] = Field(default="manual", pattern="^(manual|csv)$")
     category_id: Optional[uuid.UUID] = None
 
+
 class TransactionUpdate(BaseModel):
     amount: Optional[float] = Field(default=None, gt=0.0)
     transaction_date: Optional[date] = None
@@ -63,7 +70,10 @@ class TransactionUpdate(BaseModel):
     category_id: Optional[uuid.UUID] = None
     is_flagged: Optional[bool] = None
 
+
 class TransactionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     user_id: uuid.UUID
     category_id: Optional[uuid.UUID] = None
@@ -76,21 +86,22 @@ class TransactionResponse(BaseModel):
     is_flagged: bool
     category: Optional[CategoryResponse] = None
 
-    class Config:
-        from_attributes = True
 
 class MLCategorizeRequest(BaseModel):
     description: str = Field(..., min_length=1, max_length=500)
+
 
 class MLCategorizeResponse(BaseModel):
     predicted_category: str
     confidence_score: float
     is_flagged: bool
 
+
 class CSVImportResponse(BaseModel):
     message: str
     total_parsed: int
     total_imported: int
+
 
 class MLTrainResponse(BaseModel):
     status: str
@@ -98,6 +109,7 @@ class MLTrainResponse(BaseModel):
     user_samples: int
     total_samples: int
     message: str
+
 
 # ── Budget Schemas ──────────────────────────────────────────────────────────
 
@@ -107,10 +119,14 @@ class BudgetCreate(BaseModel):
     month: int = Field(..., ge=1, le=12)
     year: int = Field(..., ge=2000, le=2100)
 
+
 class BudgetUpdate(BaseModel):
     limit_amount: float = Field(..., gt=0.0)
 
+
 class BudgetResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     user_id: uuid.UUID
     category_id: uuid.UUID
@@ -123,12 +139,12 @@ class BudgetResponse(BaseModel):
     percent_used: float = 0.0
     is_breached: bool = False
 
-    class Config:
-        from_attributes = True
 
 # ── Insight Schemas ─────────────────────────────────────────────────────────
 
 class InsightResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     user_id: uuid.UUID
     insight_type: str
@@ -137,6 +153,3 @@ class InsightResponse(BaseModel):
     is_read: bool
     created_at: datetime
     category: Optional[CategoryResponse] = None
-
-    class Config:
-        from_attributes = True
