@@ -22,3 +22,6 @@ dist/
 .idea/
 .gemini/
 .git/
+
+#others
+sample pdf statements/

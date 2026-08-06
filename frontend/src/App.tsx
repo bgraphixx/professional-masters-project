@@ -23,7 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
-  PiggyBank
+  PiggyBank,
+  Settings
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -134,8 +135,10 @@ function App() {
   const [filterType, setFilterType] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('');
 
-  // CSV statement import state
-  const [csvFile, setCsvFile] = useState<File | null>(null);
+  // Statement import state
+  const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const [pdfBank, setPdfBank] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [importSummary, setImportSummary] = useState('');
 
@@ -150,7 +153,7 @@ function App() {
   const [pendingRetrain, setPendingRetrain] = useState(false);
 
   // Navigation & layout states
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'budgets' | 'insights'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'budgets' | 'insights' | 'settings'>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -460,6 +463,29 @@ function App() {
     }
   };
 
+  const handleNukeTransactions = async () => {
+    if (!confirm('Are you absolutely sure you want to nuke all your transactions? This cannot be undone!')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/transactions/all`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setSuccessMessage('All transactions have been deleted.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        fetchTransactions();
+      } else {
+        const data = await res.json();
+        throw new Error(data.detail || 'Failed to delete transactions');
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // CSV Drag and drop imports
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -477,31 +503,42 @@ function App() {
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (file.name.endsWith('.csv')) {
-        setCsvFile(file);
+      if (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.pdf')) {
+        setStatementFile(file);
       } else {
-        alert('Please drop a valid CSV statement file.');
+        alert('Please drop a valid CSV or PDF statement file.');
       }
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setCsvFile(e.target.files[0]);
+      setStatementFile(e.target.files[0]);
     }
   };
 
-  const handleImportCSV = async (e: React.FormEvent) => {
+  const handleImportStatement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!csvFile) return;
+    if (!statementFile) return;
 
     setLoading(true);
     setImportSummary('');
     const formData = new FormData();
-    formData.append('file', csvFile);
+    formData.append('file', statementFile);
+    
+    let endpoint = '/transactions/import-csv';
+    if (statementFile.name.toLowerCase().endsWith('.pdf')) {
+      endpoint = '/transactions/import-pdf';
+      if (pdfPassword) {
+        formData.append('password', pdfPassword);
+      }
+      if (pdfBank) {
+        formData.append('bank', pdfBank);
+      }
+    }
 
     try {
-      const res = await fetch(`${API_URL}/transactions/import-csv`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -509,11 +546,13 @@ function App() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.detail || 'CSV importing failed');
+        throw new Error(data.detail || 'Importing failed');
       }
 
       setImportSummary(data.message);
-      setCsvFile(null);
+      setStatementFile(null);
+      setPdfPassword('');
+      setPdfBank('');
       fetchTransactions();
       setTimeout(() => {
         setIsImportModalOpen(false);
@@ -700,6 +739,7 @@ function App() {
               { id: 'transactions', label: 'Transactions', icon: FileSpreadsheet },
               { id: 'budgets', label: 'Budgets', icon: PiggyBank },
               { id: 'insights', label: 'AI Insights & ML', icon: Sparkles },
+              { id: 'settings', label: 'Settings', icon: Settings },
             ].map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -1135,7 +1175,7 @@ function App() {
                         {transactions.map((tx) => (
                           <tr key={tx.id} className="border-b border-surface-container/60 hover:bg-slate-50/40 transition-colors">
                             <td className="py-4 text-sm font-mono text-slate-600">{tx.transaction_date}</td>
-                            <td className="py-4 text-sm font-medium text-on-background max-w-[240px] truncate">{tx.description}</td>
+                            <td className="py-4 text-sm font-medium text-on-background max-w-sm whitespace-normal break-words">{tx.description}</td>
                             <td className="py-4">
                               <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
                                 tx.source === 'csv' 
@@ -1407,6 +1447,32 @@ function App() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'settings' && (
+              <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-on-background">Settings</h2>
+                  <p className="text-slate-500 text-sm mt-1">Manage your account and preferences.</p>
+                </div>
+                
+                <div className="bg-surface-lowest rounded-xl border border-outline-variant p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-error mb-4">Danger Zone</h3>
+                  <div className="border border-error/20 bg-error/5 rounded-lg p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h4 className="font-bold text-error">Nuke All Transactions</h4>
+                      <p className="text-sm text-slate-600 mt-1 max-w-md">Permanently delete all your imported and manually created transactions. This action cannot be undone.</p>
+                    </div>
+                    <button 
+                      onClick={handleNukeTransactions}
+                      disabled={loading}
+                      className="px-5 py-2.5 bg-error hover:bg-[#b91c1c] text-white rounded-default font-bold text-sm shadow-sm transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50"
+                    >
+                      {loading ? 'Nuking...' : 'Nuke All Data'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </main>
         </div>
 
@@ -1519,7 +1585,7 @@ function App() {
               </button>
 
               <h3 className="text-lg font-bold text-on-background mb-1">Import Bank Statement</h3>
-              <p className="text-xs text-slate-500 mb-4">Support CSV statements (GTBank, Opay, Access, etc.).</p>
+              <p className="text-xs text-slate-500 mb-4">Support CSV and PDF statements (GTBank, Opay, Access, etc.).</p>
 
               {importSummary ? (
                 <div className="p-4 rounded-default bg-primary-container/10 border border-primary-container text-primary text-sm flex items-start gap-2.5">
@@ -1527,7 +1593,7 @@ function App() {
                   <span className="font-medium">{importSummary}</span>
                 </div>
               ) : (
-                <form onSubmit={handleImportCSV} className="space-y-4">
+                <form onSubmit={handleImportStatement} className="space-y-4">
                   <div
                     onDragEnter={handleDrag}
                     onDragOver={handleDrag}
@@ -1536,43 +1602,70 @@ function App() {
                     className={`w-full min-h-[160px] border-2 border-dashed rounded-default flex flex-col items-center justify-center p-4 transition-all cursor-pointer ${
                       isDragging 
                         ? 'border-primary bg-primary-container/5' 
-                        : csvFile 
+                        : statementFile 
                         ? 'border-secondary bg-surface-low' 
                         : 'border-outline-variant hover:border-slate-400 bg-surface-lowest'
                     }`}
                   >
                     <input
                       type="file"
-                      id="csv-file-input"
-                      accept=".csv"
+                      id="statement-file-input"
+                      accept=".csv, .pdf"
                       onChange={handleFileChange}
                       className="hidden"
                     />
-                    <label htmlFor="csv-file-input" className="w-full h-full flex flex-col items-center justify-center cursor-pointer space-y-2">
-                      <FileSpreadsheet className={`w-10 h-10 ${csvFile ? 'text-secondary' : 'text-slate-400'}`} />
+                    <label htmlFor="statement-file-input" className="w-full h-full flex flex-col items-center justify-center cursor-pointer space-y-2">
+                      <FileSpreadsheet className={`w-10 h-10 ${statementFile ? 'text-secondary' : 'text-slate-400'}`} />
                       <div className="text-center">
-                        {csvFile ? (
-                          <p className="text-xs font-bold text-slate-800">{csvFile.name}</p>
+                        {statementFile ? (
+                          <p className="text-xs font-bold text-slate-800">{statementFile.name}</p>
                         ) : (
                           <>
-                            <p className="text-xs font-semibold text-slate-700">Drag & Drop bank statement CSV here</p>
+                            <p className="text-xs font-semibold text-slate-700">Drag & Drop bank statement CSV or PDF here</p>
                             <p className="text-[10px] text-slate-400 mt-1">or click to browse local files</p>
                           </>
                         )}
                       </div>
                     </label>
                   </div>
+                  
+                  {statementFile && statementFile.name.toLowerCase().endsWith('.pdf') && (
+                    <div className="space-y-3 mt-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Bank (Optional)</label>
+                        <select
+                          value={pdfBank}
+                          onChange={(e) => setPdfBank(e.target.value)}
+                          className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary bg-surface-lowest text-on-background transition-all"
+                        >
+                          <option value="">Auto-detect / Other</option>
+                          <option value="opay">OPay</option>
+                          <option value="providus">Providus Bank</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">PDF Password (if protected)</label>
+                        <input
+                          type="password"
+                          placeholder="Leave blank if none"
+                          value={pdfPassword}
+                          onChange={(e) => setPdfPassword(e.target.value)}
+                          className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="p-3 bg-surface-low rounded border border-outline-variant/60">
-                    <h4 className="text-[10px] font-bold text-slate-700 uppercase font-mono mb-1">Expected CSV Format:</h4>
+                    <h4 className="text-[10px] font-bold text-slate-700 uppercase font-mono mb-1">Expected Format:</h4>
                     <p className="text-[9px] text-slate-500 leading-relaxed font-mono">
-                      Headers should contain: Date, Description (or Narration), and Amount (or separate Debit/Credit columns).
+                      Tables should contain: Date, Description (or Narration), and Amount (or separate Debit/Credit columns).
                     </p>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading || !csvFile}
+                    disabled={loading || !statementFile}
                     className="w-full py-3 bg-primary hover:bg-[#00522b] text-white font-bold text-sm rounded-default cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_2px_4px_rgba(0,106,57,0.1)]"
                   >
                     {loading ? (

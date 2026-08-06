@@ -1,0 +1,137 @@
+--- Parsing /Users/ebubechukwuibeh/Development/professional-masters-project/sample pdf statements/EBUBECHUKWU DAVID IBEH_7085103640_20260805131934.pdf ---
+Found Opay TXs: 83
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '16,450.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OPay Card Payment | Chowdeck ', 'debit': '16,450.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'Stamp Duty ', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '50.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '5,000.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '5,000.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '608011474785 | OPAY DIGITAL SERVICES ', 'debit': '2,100.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '2,100.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '2ISTDCKA | 260801TtXCnp | T BUTTER ', 'debit': '7,450.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '7,450.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '20589RR4 | 996995707974 | BUTTER CRUST ', 'debit': '6,300.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '6,300.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'SERVICES | Guaranty Trust Bank | ', 'debit': '3,200.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '3,200.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '2232ZYX5 | 307931390796 | NEW DURAK ', 'debit': '10,000.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '10,000.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'Stamp Duty ', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '50.00'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '2,500.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '2,500.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '2ISMIOTN | 260802T7fvWt | T CASA45 ', 'debit': '2,937.50', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '2,937.50'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '2,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '2,000.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '3,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '3,000.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OLUCHUKWU | Fidelity Bank | 6784355227 | ', 'debit': '20,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '20,000.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'Stamp Duty ', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '50.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '12,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'Stamp Duty ', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '12,000.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '50.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '3,009.30', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'VAT on Transfer Fee ', 'debit': '0.70', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '3,010.00'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '3,009.30', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'VAT on Transfer Fee ', 'debit': '0.70', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '3,010.00'}
+Opay TX: {'date': '03 Aug 2026', 'desc': 'Bank | 2ISAGPNJ | 900226218499 | ', 'debit': '750.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '750.00'}
+Opay TX: {'date': '03 Aug 2026', 'desc': '2ISMPIAQ | 260803KhuUV4 | T ', 'debit': '4,955.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '4,955.00'}
+Opay TX: {'date': '03 Aug 2026', 'desc': '203596CQ | 292360058493 | WEMA POS ', 'debit': '15,000.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '15,000.00'}
+Opay TX: {'date': '03 Aug 2026', 'desc': 'Stamp Duty ', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '50.00'}
+Opay TX: {'date': '04 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '10.00'}
+Opay TX: {'date': '04 Aug 2026', 'desc': 'USSD Charge ', 'debit': '10.00', 'credit': '--'}
+Opay TX: {'date': '04 Aug 2026', 'desc': '', 'debit': '500.00', 'credit': '--'}
+Opay TX: {'date': '04 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '500.00'}
+Opay TX: {'date': '04 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment) ', 'debit': '--', 'credit': '3,000.00'}
+Opay TX: {'date': '04 Aug 2026', 'desc': '', 'debit': '3,000.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Interest Earned ', 'debit': '--', 'credit': '2.70'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '16,450.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '5,000.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '2,100.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '7,450.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal ', 'debit': '6,300.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '3,200.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '10,000.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '01 Aug 2026', 'desc': '', 'debit': '2,500.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': 'OWealth Interest Earned ', 'debit': '--', 'credit': '19.80'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '2,937.50', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '2,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '3,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '20,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '12,000.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '3,010.00', 'credit': '--'}
+Opay TX: {'date': '02 Aug 2026', 'desc': '', 'debit': '3,010.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': '', 'debit': '750.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': '', 'debit': '4,955.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': '', 'debit': '15,000.00', 'credit': '--'}
+Opay TX: {'date': '03 Aug 2026', 'desc': '', 'debit': '50.00', 'credit': '--'}
+Opay TX: {'date': '04 Aug 2026', 'desc': 'OWealth Interest Earned ', 'debit': '--', 'credit': '1.61'}
+Opay TX: {'date': '04 Aug 2026', 'desc': '', 'debit': '10.00', 'credit': '--'}
+Opay TX: {'date': '04 Aug 2026', 'desc': 'OWealth Withdrawal ', 'debit': '500.00', 'credit': '--'}
+Opay TX: {'date': '04 Aug 2026', 'desc': '', 'debit': '3,000.00', 'credit': '--'}
+Found Table Header: ['Trans. Time', 'Value Date', 'Description', 'Debit(₦)', 'Credit(₦)', 'Balance After(₦)', 'Channel', 'Transaction Reference']
+Table rows to process: 86
+Sample table row: ['01 Aug 2026 12:02:53 01 Aug 2026 OWealth Withdrawal(Transaction Payment) -- 16,450.00 16,450.00 Mobile 260801010201262501067777', '', '', '', '', '', '', '']
+Table TX 0: ['01 Aug 2026 12:02:53 01 Aug 2026 OWealth Withdrawal(Transaction Payment) -- 16,450.00 16,450.00 Mobile 260801010201262501067777', '', '', '', '', '', '', '']
+Table TX 1: ['01 Aug 2026 12:02:53', '01 Aug 2026', 'OPay Card Payment | Chowdeck', '16,450.00', '--', '0.00', 'WEB', '260801330100262310027398']
+Table TX 2: ['01 Aug 2026 12:12:53 01 Aug 2026 Stamp Duty 50.00 -- 0.00 Mobile 260801550101262640420549', '', '', '', '', '', '', '']
+Table TX 3: ['01 Aug 2026 12:12:54', '01 Aug 2026', 'OWealth Withdrawal(Transaction Payment)', '--', '50.00', '50.00', 'Mobile', '260801010201262861302297']
+Table TX 4: ['Transfer to CHIEDOZIE FAVOUR OKAFOR | 01 Aug 2026 13:54:43 01 Aug 2026 5,000.00 -- 0.00 Mobile 260801010100267061883057 OPay | 9056689271', '', '', '', '', '', '', '']
+Indices: date=1, desc=2, amt=-1, deb=3, cred=4
+Total parsed: 42
+Parsed 0: {'date': '01 Aug 2026', 'desc': 'OPay Card Payment | Chowdeck', 'amount': 16450.0, 'type': 'expense'}
+Parsed 1: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 50.0, 'type': 'income'}
+Parsed 2: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 5000.0, 'type': 'income'}
+Parsed 3: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 2100.0, 'type': 'income'}
+Parsed 4: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 7450.0, 'type': 'income'}
+Parsed 5: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 6300.0, 'type': 'income'}
+Parsed 6: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 3200.0, 'type': 'income'}
+Parsed 7: {'date': '', 'desc': '01 Aug 2026 20:48:32', 'amount': 12026.0, 'type': 'expense'}
+Parsed 8: {'date': '', 'desc': '01 Aug 2026 20:58:33', 'amount': 12026.0, 'type': 'expense'}
+Parsed 9: {'date': '', 'desc': '01 Aug 2026 22:07:01', 'amount': 12026.0, 'type': 'expense'}
+Parsed 10: {'date': '', 'desc': '02 Aug 2026 04:57:50', 'amount': 22026.0, 'type': 'expense'}
+Parsed 11: {'date': '', 'desc': '02 Aug 2026 11:10:25', 'amount': 22026.0, 'type': 'expense'}
+Parsed 12: {'date': '', 'desc': '02 Aug 2026 11:20:03', 'amount': 22026.0, 'type': 'expense'}
+Parsed 13: {'date': '', 'desc': '02 Aug 2026 11:46:43', 'amount': 22026.0, 'type': 'expense'}
+Parsed 14: {'date': '', 'desc': '02 Aug 2026 11:46:44', 'amount': 22026.0, 'type': 'expense'}
+Parsed 15: {'date': '', 'desc': '02 Aug 2026 12:19:56', 'amount': 22026.0, 'type': 'expense'}
+Parsed 16: {'date': '', 'desc': '02 Aug 2026 12:19:56', 'amount': 22026.0, 'type': 'expense'}
+Parsed 17: {'date': '', 'desc': '02 Aug 2026 12:20:31', 'amount': 22026.0, 'type': 'expense'}
+Parsed 18: {'date': '', 'desc': '02 Aug 2026 13:12:53', 'amount': 54310912.0, 'type': 'income'}
+Parsed 19: {'date': '', 'desc': '02 Aug 2026 13:12:56', 'amount': 22026.0, 'type': 'expense'}
+Parsed 20: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 750.0, 'type': 'income'}
+Parsed 21: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 4955.0, 'type': 'income'}
+Parsed 22: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 15000.0, 'type': 'income'}
+Parsed 23: {'date': '03 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 50.0, 'type': 'income'}
+Parsed 24: {'date': '04 Aug 2026', 'desc': 'USSD Charge', 'amount': 10.0, 'type': 'expense'}
+Parsed 25: {'date': '04 Aug 2026', 'desc': 'OWealth Withdrawal(Transaction Payment)', 'amount': 500.0, 'type': 'income'}
+Parsed 26: {'date': '04 Aug 2026', 'desc': 'OPay Card Payment | OPay | 2070OAYP | 608047004771 | OPay The Place Ilupeju LANG', 'amount': 3000.0, 'type': 'expense'}
+Parsed 27: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal (Transaction Payment)', 'amount': 16450.0, 'type': 'expense'}
+Parsed 28: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal (Transaction Payment)', 'amount': 5000.0, 'type': 'expense'}
+Parsed 29: {'date': '01 Aug 2026', 'desc': 'OWealth Withdrawal (Transaction Payment)', 'amount': 7450.0, 'type': 'expense'}
+Parsed 30: {'date': '', 'desc': '01 Aug 2026 17:52:38', 'amount': 12026.0, 'type': 'expense'}
+Parsed 31: {'date': '', 'desc': '01 Aug 2026 20:58:33', 'amount': 12026.0, 'type': 'expense'}
+Parsed 32: {'date': '', 'desc': '02 Aug 2026 01:33:53', 'amount': 22026.0, 'type': 'expense'}
+Parsed 33: {'date': '', 'desc': '02 Aug 2026 11:10:25', 'amount': 22026.0, 'type': 'expense'}
+Parsed 34: {'date': '', 'desc': '02 Aug 2026 11:46:43', 'amount': 22026.0, 'type': 'expense'}
+Parsed 35: {'date': '', 'desc': '02 Aug 2026 12:19:56', 'amount': 22026.0, 'type': 'expense'}
+Parsed 36: {'date': '', 'desc': '02 Aug 2026 12:20:34', 'amount': 22026.0, 'type': 'expense'}
+Parsed 37: {'date': '', 'desc': '03 Aug 2026 03:32:12', 'amount': 32026.0, 'type': 'expense'}
+Parsed 38: {'date': '', 'desc': '03 Aug 2026 17:54:42', 'amount': 32026.0, 'type': 'expense'}
+Parsed 39: {'date': '', 'desc': '03 Aug 2026 18:30:53', 'amount': 32026.0, 'type': 'expense'}
+Parsed 40: {'date': '', 'desc': '04 Aug 2026 11:51:17', 'amount': 42026.0, 'type': 'expense'}
+Parsed 41: {'date': '04 Aug 2026', 'desc': 'OWealth Withdrawal (Transaction Payment)', 'amount': 3000.0, 'type': 'expense'}

@@ -2,11 +2,11 @@ FROM node:20-slim
 
 WORKDIR /frontend
 
-# Copy dependencies manifest
-COPY package.json ./
+# Copy dependencies manifest and lockfile
+COPY package*.json ./
 
-# Install packages
-RUN npm install
+# Install packages deterministically and faster
+RUN npm ci
 
 # Copy all source files
 COPY . .

@@ -4,10 +4,11 @@ import uuid
 import re
 from datetime import date, datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+import pdfplumber
 
 from app.core.security import get_current_user
 from app.db.session import get_db
@@ -25,7 +26,7 @@ router = APIRouter()
 
 def parse_date(date_str: str) -> date:
     date_str = date_str.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%d.%m.%Y"):
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d %b %Y", "%d-%b-%Y", "%d-%b-%y", "%d %B %Y", "%d-%B-%Y"):
         try:
             return datetime.strptime(date_str, fmt).date()
         except ValueError:
@@ -165,6 +166,16 @@ async def update_transaction(
     stmt = select(Transaction).where(Transaction.id == tx.id).options(selectinload(Transaction.category))
     res = await db.execute(stmt)
     return res.scalar_one()
+
+@router.delete("/all")
+async def delete_all_transactions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = delete(Transaction).where(Transaction.user_id == current_user.id)
+    await db.execute(stmt)
+    await db.commit()
+    return {"message": "All transactions deleted successfully."}
 
 @router.delete("/{tx_id}")
 async def delete_transaction(
@@ -315,3 +326,193 @@ async def import_transactions_csv(
         "total_parsed": total_parsed,
         "total_imported": total_imported
     }
+
+@router.post("/import-pdf", response_model=CSVImportResponse)
+async def import_transactions_pdf(
+    file: UploadFile = File(...),
+    password: Optional[str] = Form(None),
+    bank: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    contents = await file.read()
+    try:
+        pdf = pdfplumber.open(io.BytesIO(contents), password=password or "")
+    except Exception as e:
+        err_str = str(e).lower()
+        if "password" in err_str or "encrypt" in err_str:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This PDF is password protected. Please provide the correct password."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not read PDF file: {str(e)}"
+        )
+
+    header = None
+    date_idx = desc_idx = amount_idx = debit_idx = credit_idx = -1
+    rows_to_process = []
+    
+    # Text-based parsing for statements without table borders (e.g. OPay)
+    opay_transactions = []
+    opay_start_pattern = re.compile(r'^(\d{2} [a-zA-Z]{3} \d{4} \d{2}:\d{2}:\d{2})\s+(\d{2} [a-zA-Z]{3} \d{4})(?:\s+(.*))?$')
+    opay_end_pattern = re.compile(r'(.*?\s+)?([\d,\.\-]+|--)\s+([\d,\.\-]+|--)\s+([\d,\.\-]+|--)\s+([A-Za-z]+)\s*(\d*)$')
+    
+    with pdf:
+        for page in pdf.pages:
+            # Try parsing raw text for known borderless formats first
+            text = page.extract_text()
+            if text:
+                current_tx = None
+                for line in text.split('\n'):
+                    line = line.strip()
+                    if not line: continue
+                    start_match = opay_start_pattern.match(line)
+                    if start_match:
+                        if current_tx and current_tx['debit'] is not None:
+                            opay_transactions.append(current_tx)
+                        current_tx = {'date': start_match.group(2), 'desc': start_match.group(3) or "", 'debit': None, 'credit': None}
+                        end_match = opay_end_pattern.search(current_tx['desc'])
+                        if end_match:
+                            desc = end_match.group(1) or ""
+                            current_tx['desc'] = current_tx['desc'][:end_match.start()] + desc
+                            current_tx['debit'] = end_match.group(2)
+                            current_tx['credit'] = end_match.group(3)
+                    elif current_tx and current_tx['debit'] is None:
+                        end_match = opay_end_pattern.search(line)
+                        if end_match:
+                            desc = end_match.group(1) or ""
+                            current_tx['desc'] += " " + line[:end_match.start()] + desc
+                            current_tx['debit'] = end_match.group(2)
+                            current_tx['credit'] = end_match.group(3)
+                        else:
+                            current_tx['desc'] += " " + line
+                if current_tx and current_tx['debit'] is not None:
+                    opay_transactions.append(current_tx)
+
+            tables = page.extract_tables()
+            for table in tables:
+                for row in table:
+                    clean_row = [str(c).replace('\n', ' ').strip() if c is not None else "" for c in row]
+                    if not any(clean_row):
+                        continue
+                        
+                    if header is None:
+                        row_lower = [c.lower() for c in clean_row]
+                        has_date = any(x in c for x in ["date"] for c in row_lower)
+                        has_desc = any(x in c for x in ["description", "narration", "remarks", "details", "memo"] for c in row_lower)
+                        if has_date and has_desc:
+                            header = clean_row
+                            for i, col in enumerate(row_lower):
+                                if "date" in col:
+                                    date_idx = i
+                                elif any(x in col for x in ("description", "narration", "remarks", "details", "memo")):
+                                    desc_idx = i
+                                elif any(x in col for x in ("amount", "value", "balance")): 
+                                    if "balance" not in col or "amount" in col:
+                                        amount_idx = i
+                                elif any(x in col for x in ("debit", "withdrawal", "payment")):
+                                    debit_idx = i
+                                elif any(x in col for x in ("credit", "deposit", "receipt")):
+                                    credit_idx = i
+                        continue
+                    else:
+                        rows_to_process.append(clean_row)
+
+    # Use OPay parsed transactions if we successfully matched its unique text pattern
+    if len(opay_transactions) > 0 and (bank == 'opay' or not bank or len(rows_to_process) == 0):
+        header = True  # bypass header check
+        date_idx, desc_idx, debit_idx, credit_idx, amount_idx = 0, 1, 2, 3, -1
+        rows_to_process = [[tx['date'], tx['desc'].strip(), tx['debit'], tx['credit']] for tx in opay_transactions]
+
+    if header is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not locate a valid transaction table in the PDF."
+        )
+
+    if desc_idx == -1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not locate Description/Narration column in the PDF table."
+        )
+    if amount_idx == -1 and (debit_idx == -1 or credit_idx == -1):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not locate Amount or Debit/Credit columns in the PDF table."
+        )
+    if date_idx == -1:
+        date_idx = 0
+
+    cats_res = await db.execute(select(Category))
+    all_categories = cats_res.scalars().all()
+    category_map = {c.name: c.id for c in all_categories}
+
+    total_parsed = 0
+    total_imported = 0
+
+    for row in rows_to_process:
+        if len(row) <= max(date_idx, desc_idx, amount_idx, debit_idx, credit_idx):
+            continue
+
+        total_parsed += 1
+        raw_date = row[date_idx]
+        raw_desc = row[desc_idx].strip()
+        if not raw_desc:
+            continue
+
+        tx_date = parse_date(raw_date)
+
+        tx_type = "expense"
+        tx_amount = 0.0
+
+        if amount_idx != -1:
+            val = clean_amount(row[amount_idx])
+            if val < 0:
+                tx_type = "expense"
+                tx_amount = abs(val)
+            elif val > 0:
+                tx_type = "income"
+                tx_amount = val
+            else:
+                continue
+        else:
+            debit_val = clean_amount(row[debit_idx]) if debit_idx != -1 and debit_idx < len(row) else 0.0
+            credit_val = clean_amount(row[credit_idx]) if credit_idx != -1 and credit_idx < len(row) else 0.0
+
+            if credit_val > 0.0:
+                tx_type = "income"
+                tx_amount = credit_val
+            elif debit_val > 0.0:
+                tx_type = "expense"
+                tx_amount = debit_val
+            else:
+                continue
+
+        predicted_name, confidence, flagged = predict_category(raw_desc)
+        category_id = category_map.get(predicted_name)
+
+        new_tx = Transaction(
+            user_id=current_user.id,
+            category_id=category_id,
+            amount=tx_amount,
+            transaction_date=tx_date,
+            description=raw_desc,
+            type=tx_type,
+            source="pdf",
+            confidence_score=confidence,
+            is_flagged=flagged
+        )
+
+        db.add(new_tx)
+        total_imported += 1
+
+    await db.commit()
+
+    return {
+        "message": f"Successfully extracted {total_parsed} rows and imported {total_imported} transactions from PDF.",
+        "total_parsed": total_parsed,
+        "total_imported": total_imported
+    }
+
