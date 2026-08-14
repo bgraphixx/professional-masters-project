@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, date
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -25,6 +25,13 @@ class UserUpdate(BaseModel):
     consent_given: Optional[bool] = None
 
 
+class AccountSelfUpdate(BaseModel):
+    """Fields a user may self-update via PATCH /auth/me. Deliberately excludes
+    email and password — those go through their own dedicated flows."""
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    monthly_income: Optional[float] = Field(default=None, ge=0.0)
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -35,6 +42,7 @@ class UserResponse(BaseModel):
     profession: Optional[str] = None
     consent_given: bool
     consent_date: Optional[datetime] = None
+    is_admin: bool
     created_at: datetime
 
 
@@ -59,6 +67,11 @@ class CategoryResponse(BaseModel):
     name: str
     type: str
     is_default: bool
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    type: str = Field(..., pattern="^(income|expense)$")
 
 
 class TransactionCreate(BaseModel):
@@ -148,6 +161,18 @@ class BudgetResponse(BaseModel):
     is_breached: bool = False
 
 
+# ── Report Schemas ───────────────────────────────────────────────────────────
+
+class TransactionReportResponse(BaseModel):
+    month: int
+    year: int
+    total_income: float
+    total_expense: float
+    net_savings: float
+    category_breakdown: dict[str, float]
+    budget_utilisation: List[BudgetResponse]
+
+
 # ── Insight Schemas ─────────────────────────────────────────────────────────
 
 class InsightResponse(BaseModel):
@@ -161,3 +186,34 @@ class InsightResponse(BaseModel):
     is_read: bool
     created_at: datetime
     category: Optional[CategoryResponse] = None
+
+
+# ── Admin Schemas ────────────────────────────────────────────────────────────
+
+class AdminUserResponse(BaseModel):
+    id: uuid.UUID
+    email: EmailStr
+    full_name: str
+    created_at: datetime
+    status: str
+    transaction_count: int
+
+
+class AdminUserListResponse(BaseModel):
+    total: int
+    skip: int
+    limit: int
+    users: List[AdminUserResponse]
+
+
+class AdminMLMetricsResponse(BaseModel):
+    train_samples: Optional[int] = None
+    validation_samples: Optional[int] = None
+    test_samples: Optional[int] = None
+    train_accuracy: Optional[float] = None
+    validation_accuracy: Optional[float] = None
+    test_accuracy: Optional[float] = None
+    total_training_corpus_size: Optional[int] = None
+    trained_at: Optional[str] = None
+    model_file_timestamp: Optional[datetime] = None
+    model_file_size_bytes: Optional[int] = None

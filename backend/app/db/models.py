@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from typing import Optional, List
-from sqlalchemy import String, Numeric, Boolean, DateTime, Date, ForeignKey, text
+from sqlalchemy import String, Numeric, Boolean, DateTime, Date, ForeignKey, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
@@ -22,9 +22,16 @@ class User(Base):
     profession: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     consent_given: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     consent_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
+        server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
         server_default=text("now()")
     )
 
@@ -55,6 +62,9 @@ class Category(Base):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (
+        Index("ix_transactions_user_id_transaction_date", "user_id", "transaction_date"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -64,8 +74,7 @@ class Transaction(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        nullable=False
     )
     category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL"),
@@ -79,6 +88,12 @@ class Transaction(Base):
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="manual")  # "manual" or "csv"
     confidence_score: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False, default=1.0)
     is_flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        server_default=text("now()")
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="transactions")
@@ -87,6 +102,10 @@ class Transaction(Base):
 
 class Budget(Base):
     __tablename__ = "budgets"
+    __table_args__ = (
+        UniqueConstraint("user_id", "category_id", "month", "year", name="uq_budgets_user_category_month_year"),
+        Index("ix_budgets_user_id_month_year", "user_id", "month", "year"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -96,8 +115,7 @@ class Budget(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        nullable=False
     )
     category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"),
@@ -107,6 +125,12 @@ class Budget(Base):
     limit_amount: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     month: Mapped[int] = mapped_column(nullable=False)  # 1 - 12
     year: Mapped[int] = mapped_column(nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        server_default=text("now()")
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="budgets")
@@ -115,6 +139,9 @@ class Budget(Base):
 
 class Insight(Base):
     __tablename__ = "insights"
+    __table_args__ = (
+        Index("ix_insights_user_id_is_read", "user_id", "is_read"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -124,8 +151,7 @@ class Insight(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        nullable=False
     )
     insight_type: Mapped[str] = mapped_column(String(50), nullable=False)  # "alert" / "trend" / "recommendation"
     message: Mapped[str] = mapped_column(String(1000), nullable=False)

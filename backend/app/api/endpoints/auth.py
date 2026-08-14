@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
 from app.db.session import get_db
 from app.db.models import User
-from app.schemas.schemas import UserCreate, UserResponse, LoginRequest, MessageResponse, UserUpdate, PasswordChangeRequest
+from app.schemas.schemas import UserCreate, UserResponse, LoginRequest, MessageResponse, UserUpdate, PasswordChangeRequest, AccountSelfUpdate
 
 router = APIRouter()
 
@@ -130,3 +130,56 @@ async def update_password(
     db.add(current_user)
     await db.commit()
     return {"message": "Password updated successfully."}
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    account_in: AccountSelfUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update self-service account fields. Email and password never change here."""
+    if account_in.full_name is not None:
+        current_user.full_name = account_in.full_name
+    if account_in.monthly_income is not None:
+        current_user.monthly_income = account_in.monthly_income
+
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.post("/me/password", response_model=MessageResponse)
+async def change_my_password(
+    pwd_in: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if not verify_password(pwd_in.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password."
+        )
+
+    current_user.password_hash = hash_password(pwd_in.new_password)
+    db.add(current_user)
+    await db.commit()
+    return {"message": "Password updated successfully."}
+
+@router.delete("/me", response_model=MessageResponse)
+async def delete_me(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Permanently delete the current user's account (right to erasure).
+    Transactions, budgets, and insights cascade-delete via ON DELETE CASCADE."""
+    await db.delete(current_user)
+    await db.commit()
+
+    response.delete_cookie(
+        key=settings.COOKIE_NAME,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax"
+    )
+    return {"message": "Account permanently deleted."}

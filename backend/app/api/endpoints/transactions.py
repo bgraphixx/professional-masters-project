@@ -4,7 +4,7 @@ import uuid
 import re
 from datetime import date, datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Form
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,15 +12,17 @@ import pdfplumber
 
 from app.core.security import get_current_user
 from app.db.session import get_db
-from app.db.models import User, Transaction, Category
+from app.db.models import User, Transaction, Category, Budget
 from app.schemas.schemas import (
     TransactionCreate,
     TransactionUpdate,
     TransactionResponse,
     CSVImportResponse,
-    CategoryResponse
+    CategoryResponse,
+    TransactionReportResponse,
 )
 from app.core.ml import predict_category
+from app.api.endpoints.budgets import _enrich_budget
 
 router = APIRouter()
 
@@ -69,6 +71,63 @@ async def get_transactions(
 
     result = await db.execute(stmt)
     return result.scalars().all()
+
+@router.get("/report", response_model=TransactionReportResponse)
+async def get_monthly_report(
+    month: int = Query(..., ge=1, le=12),
+    year: int = Query(..., ge=2000, le=2100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Monthly summary: total income/expense, net savings, per-category
+    breakdown, and budget utilisation for the given month/year."""
+    first_day = date(year, month, 1)
+    last_day = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+
+    stmt = (
+        select(Transaction)
+        .where(
+            Transaction.user_id == current_user.id,
+            Transaction.transaction_date >= first_day,
+            Transaction.transaction_date < last_day,
+        )
+        .options(selectinload(Transaction.category))
+    )
+    result = await db.execute(stmt)
+    transactions = result.scalars().all()
+
+    total_income = 0.0
+    total_expense = 0.0
+    category_breakdown: dict = {}
+
+    for tx in transactions:
+        amount = float(tx.amount)
+        if tx.type == "income":
+            total_income += amount
+        else:
+            total_expense += amount
+        cat_name = tx.category.name if tx.category else "Uncategorized"
+        category_breakdown[cat_name] = category_breakdown.get(cat_name, 0.0) + amount
+
+    budgets_stmt = (
+        select(Budget)
+        .where(Budget.user_id == current_user.id, Budget.month == month, Budget.year == year)
+        .options(selectinload(Budget.category))
+        .order_by(Budget.id)
+    )
+    budgets_result = await db.execute(budgets_stmt)
+    budgets = budgets_result.scalars().all()
+    budget_utilisation = [await _enrich_budget(b, db) for b in budgets]
+
+    return TransactionReportResponse(
+        month=month,
+        year=year,
+        total_income=round(total_income, 2),
+        total_expense=round(total_expense, 2),
+        net_savings=round(total_income - total_expense, 2),
+        category_breakdown={k: round(v, 2) for k, v in category_breakdown.items()},
+        budget_utilisation=budget_utilisation,
+    )
 
 @router.get("/categories", response_model=List[CategoryResponse])
 async def get_categories(

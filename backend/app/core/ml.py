@@ -1,4 +1,5 @@
 import os
+import re
 import joblib
 from typing import Tuple
 
@@ -35,13 +36,27 @@ FALLBACK_RULES = [
     (["salary", "wage", "employer", "basic pay", "net salary", "net pay", "payout", "bonus"], "Salary"),
     # Business Income
     (["freelance", "contract", "consulting", "sales", "revenue", "pos transfer", "product sale", "software project", "dividends", "business account"], "Business Income"),
+    # School Fees
+    (["school fees", "school fee", "tuition", "waec", "jamb", "pta levy", "nursery school", "creche", "exam registration", "school uniform"], "School Fees"),
+    # Medical
+    (["hospital", "pharmacy", "clinic", "nhis", "health insurance", "dental", "diagnostic center", "medplus", "malaria drug", "consultation fee", "lab test", "optical checkup", "maternity"], "Medical"),
+    # Entertainment
+    (["cinema", "filmhouse", "concert ticket", "amusement park", "bowling", "karaoke", "nightclub", "club entry", "viewing center"], "Entertainment"),
+    # Personal Care
+    (["barbershop", "barbing", "salon", "manicure", "pedicure", "spa treatment", "gym membership", "skincare", "makeup", "massage therapy", "cosmetics"], "Personal Care"),
+    # Clothing
+    (["boutique", "tailor", "ankara", "shoe repair", "designer wear", "traditional attire", "shopping complex"], "Clothing"),
+    # Business Expenses
+    (["business registration", "cac registration", "office supplies", "stationery purchase", "wholesale goods", "pos terminal", "warehouse storage", "raw materials", "inventory stock", "business marketing"], "Business Expenses"),
 ]
 
 def check_rules(description: str) -> Tuple[str, float]:
     desc_lower = description.lower()
     for keywords, category in FALLBACK_RULES:
         for kw in keywords:
-            if kw in desc_lower:
+            # Word-boundary match avoids substring false positives, e.g. the
+            # Transport keyword "mobil" incorrectly matching inside "9mobile"/"mobile".
+            if re.search(r"\b" + re.escape(kw) + r"\b", desc_lower):
                 return category, 1.00  # Rule matches have 100% confidence
     return "", 0.0
 
