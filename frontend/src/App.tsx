@@ -49,6 +49,7 @@ interface UserProfile {
   email: string;
   full_name: string;
   monthly_income: number;
+  profession?: string;
   consent_given: boolean;
   consent_date: string | null;
   created_at: string;
@@ -118,7 +119,12 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [systemStatus, setSystemStatus] = useState<'connected' | 'checking' | 'failed'>('checking');
+  // Profile settings state
+  const [profileFullName, setProfileFullName] = useState('');
+  const [profileIncome, setProfileIncome] = useState('');
+  const [profileProfession, setProfileProfession] = useState('');
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState('');
+  const [profileNewPassword, setProfileNewPassword] = useState('');
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -171,25 +177,49 @@ function App() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentTransactions = transactions.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(transactions.length / itemsPerPage);
 
-  // Verify backend health and check if user is already logged in on mount
+  const handleExportCSV = () => {
+    if (transactions.length === 0) return;
+    const headers = ['Date', 'Description', 'Category', 'Amount', 'Type', 'Source'];
+    const csvContent = [
+      headers.join(','),
+      ...transactions.map(tx => [
+        tx.transaction_date,
+        `"${tx.description.replace(/"/g, '""')}"`,
+        `"${tx.category?.name || 'Uncategorised'}"`,
+        tx.amount,
+        tx.type,
+        tx.source
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'transactions_export.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
-    checkBackendHealth();
     checkCurrentUser();
   }, []);
-
-  const checkBackendHealth = async () => {
-    try {
-      const res = await fetch(`${API_URL}/`);
-      if (res.ok) {
-        setSystemStatus('connected');
-      } else {
-        setSystemStatus('failed');
-      }
-    } catch {
-      setSystemStatus('failed');
+  useEffect(() => {
+    if (user) {
+      setProfileFullName(user.full_name);
+      setProfileIncome(user.monthly_income.toString());
+      setProfileProfession(user.profession || '');
     }
-  };
+  }, [user]);
 
   const checkCurrentUser = async () => {
     try {
@@ -209,6 +239,7 @@ function App() {
 
   // Fetch transactions and categories when logged in
   useEffect(() => {
+    setCurrentPage(1);
     if (view === 'dashboard') {
       fetchTransactions();
       fetchCategories();
@@ -481,6 +512,60 @@ function App() {
       }
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await fetch(`${API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          full_name: profileFullName,
+          monthly_income: parseFloat(profileIncome) || 0,
+          profession: profileProfession
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to update profile');
+      setUser(data);
+      setSuccessMessage('Profile updated successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await fetch(`${API_URL}/auth/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          current_password: profileCurrentPassword,
+          new_password: profileNewPassword
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to update password');
+      setSuccessMessage('Password updated successfully!');
+      setProfileCurrentPassword('');
+      setProfileNewPassword('');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
     } finally {
       setLoading(false);
     }
@@ -905,16 +990,6 @@ function App() {
                     <span className="font-semibold text-sm">{formatNaira(user.monthly_income)}</span>
                   </div>
                 )}
-
-                <div className="flex items-center gap-2 text-xs bg-surface-lowest border border-outline-variant px-3 py-1.5 rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.01)]">
-                  <span className={`w-2 h-2 rounded-full ${
-                    systemStatus === 'connected' ? 'bg-primary' : 
-                    systemStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-error'
-                  }`} />
-                  <span className="font-mono text-label-sm text-slate-500 uppercase">
-                    {systemStatus === 'connected' ? 'ONLINE' : systemStatus === 'checking' ? 'SYNCING' : 'OFFLINE'}
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -1148,6 +1223,16 @@ function App() {
                       <Upload className="w-4 h-4 text-slate-500" />
                       <span>Import Statement</span>
                     </button>
+
+                    {/* Export CSV Button */}
+                    <button
+                      onClick={handleExportCSV}
+                      disabled={transactions.length === 0}
+                      className="bg-surface-lowest hover:bg-slate-50 border border-outline-variant text-slate-700 px-3.5 py-2 rounded-default text-xs font-bold cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-slate-500" />
+                      <span>Export CSV</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1166,13 +1251,13 @@ function App() {
                           <th className="pb-3 font-semibold">Date</th>
                           <th className="pb-3 font-semibold">Description</th>
                           <th className="pb-3 font-semibold">Source</th>
-                          <th className="pb-3 font-semibold">Category (ML Classification)</th>
+                          <th className="pb-3 font-semibold">Category</th>
                           <th className="pb-3 font-semibold text-right">Amount</th>
                           <th className="pb-3 font-semibold text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {transactions.map((tx) => (
+                        {currentTransactions.map((tx) => (
                           <tr key={tx.id} className="border-b border-surface-container/60 hover:bg-slate-50/40 transition-colors">
                             <td className="py-4 text-sm font-mono text-slate-600">{tx.transaction_date}</td>
                             <td className="py-4 text-sm font-medium text-on-background max-w-sm whitespace-normal break-words">{tx.description}</td>
@@ -1221,6 +1306,34 @@ function App() {
                     </table>
                   )}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t border-surface-container pt-4 mt-4">
+                    <span className="text-xs text-slate-500">
+                      Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, transactions.length)} of {transactions.length} entries
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 border border-outline-variant rounded-default text-xs font-medium hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-xs font-medium text-slate-700">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 border border-outline-variant rounded-default text-xs font-medium hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1413,36 +1526,63 @@ function App() {
                     </p>
                   </div>
 
-                  {/* ML Retraining Console */}
+                  {/* Dynamic AI Insights */}
                   <div className="bg-surface-lowest border border-outline-variant/70 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      ML Retraining Console
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      Spending Anomaly Detection
                     </h3>
-                    <div className="space-y-1 font-mono text-[10px] text-slate-500 bg-surface-low border border-outline-variant/40 rounded p-3">
-                      <div className="flex justify-between"><span>Classifier:</span><span className="text-slate-800 font-bold">TF-IDF + LogReg</span></div>
-                      <div className="flex justify-between"><span>Base Templates:</span><span className="text-slate-800 font-bold">{mlStats ? mlStats.default_samples : 49}</span></div>
-                      <div className="flex justify-between"><span>User Corrections:</span><span className="text-slate-800 font-bold">{mlStats ? mlStats.user_samples : transactions.filter(t => t.category_id !== null).length}</span></div>
-                      <div className="flex justify-between border-t border-slate-200/50 pt-1"><span>Total Dataset:</span><span className="text-slate-800 font-bold">{mlStats ? mlStats.total_samples : 49 + transactions.filter(t => t.category_id !== null).length}</span></div>
-                      {mlStats?.last_trained && <div className="flex justify-between"><span>Last Trained:</span><span className="text-slate-800 font-bold">{mlStats.last_trained}</span></div>}
-                    </div>
-                    {pendingRetrain && (
-                      <div className="p-3 rounded-default bg-amber-500/10 border border-amber-500/30 flex items-start gap-2">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <p className="text-[10.5px] text-amber-700">Model outdated — new corrections available. Retrain to improve accuracy.</p>
-                      </div>
-                    )}
-                    <button
-                      onClick={handleRetrainModel}
-                      disabled={mlTraining}
-                      className={`w-full py-2.5 text-xs font-bold text-white rounded-default cursor-pointer transition-all active:scale-[0.98] ${
-                        pendingRetrain ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-[#00522b]'
-                      } disabled:opacity-50 shadow-[0_2px_6px_rgba(0,0,0,0.08)]`}
-                    >
-                      {mlTraining ? (
-                        <span className="flex items-center justify-center gap-2"><span className="border-2 border-white border-t-transparent w-3.5 h-3.5 rounded-full animate-spin" /> Retraining...</span>
-                      ) : 'Retrain AI Model'}
-                    </button>
+                    {(() => {
+                      const expenses = transactions.filter(t => t.type === 'expense');
+                      const avgExpense = expenses.length > 0 ? expenses.reduce((sum, t) => sum + Number(t.amount), 0) / expenses.length : 0;
+                      const anomalies = expenses.filter(t => Number(t.amount) > avgExpense * 2).slice(0, 3);
+                      return anomalies.length > 0 ? (
+                        <div className="space-y-2">
+                          {anomalies.map(a => (
+                            <div key={a.id} className="text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-700 p-2 rounded flex justify-between items-center">
+                              <span className="truncate pr-2">{a.description}</span>
+                              <span className="font-bold shrink-0">{formatNaira(a.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500 italic">No unusual spending patterns detected recently.</p>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="bg-surface-lowest border border-outline-variant/70 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      Savings Projections
+                    </h3>
+                    {(() => {
+                      const totalIncome = user?.monthly_income || 0;
+                      const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+                      const projectedSavings = Math.max(0, totalIncome - totalExpenses);
+                      const savingsRate = totalIncome > 0 ? (projectedSavings / totalIncome) * 100 : 0;
+                      return (
+                        <div className="space-y-2 font-mono text-[11px] text-slate-600 bg-surface-low border border-outline-variant/40 rounded p-3">
+                          <div className="flex justify-between"><span>Monthly Income:</span><span className="font-bold">{formatNaira(totalIncome)}</span></div>
+                          <div className="flex justify-between"><span>Total Expenses:</span><span className="font-bold">{formatNaira(totalExpenses)}</span></div>
+                          <div className="flex justify-between border-t border-slate-200/50 pt-1 text-primary">
+                            <span>Projected Savings:</span><span className="font-bold">{formatNaira(projectedSavings)} ({savingsRate.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="bg-surface-lowest border border-outline-variant/70 rounded-lg p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-secondary" />
+                      Personalized Tips
+                    </h3>
+                    <p className="text-[11px] text-slate-600 leading-relaxed bg-secondary-container/10 border border-secondary/20 p-3 rounded">
+                      {user?.profession 
+                        ? `As a ${user.profession}, consider setting aside a portion of your income for professional development or industry-specific emergency funds. Your current spending aligns with typical benchmarks for your role.`
+                        : `Consider updating your profile with your profession to receive customized financial strategies and peer comparisons.`}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1455,6 +1595,46 @@ function App() {
                   <p className="text-slate-500 text-sm mt-1">Manage your account and preferences.</p>
                 </div>
                 
+                {/* Profile Form */}
+                <div className="bg-surface-lowest rounded-xl border border-outline-variant p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-on-background mb-4">Profile Details</h3>
+                  <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-lg">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Full Name</label>
+                      <input type="text" required value={profileFullName} onChange={(e) => setProfileFullName(e.target.value)} className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Monthly Income (₦)</label>
+                      <input type="number" required min="0" value={profileIncome} onChange={(e) => setProfileIncome(e.target.value)} className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Profession / Occupation</label>
+                      <input type="text" placeholder="e.g. Software Engineer" value={profileProfession} onChange={(e) => setProfileProfession(e.target.value)} className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all" />
+                    </div>
+                    <button type="submit" disabled={loading} className="px-4 py-2 bg-primary hover:bg-[#00522b] text-white rounded-default font-bold text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50">
+                      {loading ? 'Saving...' : 'Save Profile'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Password Form */}
+                <div className="bg-surface-lowest rounded-xl border border-outline-variant p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-on-background mb-4">Security</h3>
+                  <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-lg">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Current Password</label>
+                      <input type="password" required value={profileCurrentPassword} onChange={(e) => setProfileCurrentPassword(e.target.value)} className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">New Password</label>
+                      <input type="password" required minLength={8} value={profileNewPassword} onChange={(e) => setProfileNewPassword(e.target.value)} className="w-full px-3 py-2 border border-outline-variant rounded-default text-sm focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all" />
+                    </div>
+                    <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-default font-bold text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50">
+                      {loading ? 'Saving...' : 'Update Password'}
+                    </button>
+                  </form>
+                </div>
+
                 <div className="bg-surface-lowest rounded-xl border border-outline-variant p-6 shadow-sm">
                   <h3 className="text-lg font-bold text-error mb-4">Danger Zone</h3>
                   <div className="border border-error/20 bg-error/5 rounded-lg p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1470,6 +1650,35 @@ function App() {
                       {loading ? 'Nuking...' : 'Nuke All Data'}
                     </button>
                   </div>
+                </div>
+
+                {/* ML Retraining Console (Admin/Settings) */}
+                <div className="bg-surface-lowest rounded-xl border border-outline-variant p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-on-background mb-4">ML Retraining</h3>
+                  <div className="space-y-1 font-mono text-[10px] text-slate-500 bg-surface-low border border-outline-variant/40 rounded p-3">
+                    <div className="flex justify-between"><span>Classifier:</span><span className="text-slate-800 font-bold">TF-IDF + LogReg</span></div>
+                    <div className="flex justify-between"><span>Base Templates:</span><span className="text-slate-800 font-bold">{mlStats ? mlStats.default_samples : 49}</span></div>
+                    <div className="flex justify-between"><span>User Corrections:</span><span className="text-slate-800 font-bold">{mlStats ? mlStats.user_samples : transactions.filter(t => t.category_id !== null).length}</span></div>
+                    <div className="flex justify-between border-t border-slate-200/50 pt-1"><span>Total Dataset:</span><span className="text-slate-800 font-bold">{mlStats ? mlStats.total_samples : 49 + transactions.filter(t => t.category_id !== null).length}</span></div>
+                    {mlStats?.last_trained && <div className="flex justify-between"><span>Last Trained:</span><span className="text-slate-800 font-bold">{mlStats.last_trained}</span></div>}
+                  </div>
+                  {pendingRetrain && (
+                    <div className="p-3 rounded-default bg-amber-500/10 border border-amber-500/30 flex items-start gap-2 mt-4">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-[10.5px] text-amber-700">Model outdated — new corrections available. Retrain to improve accuracy.</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleRetrainModel}
+                    disabled={mlTraining}
+                    className={`w-full py-2.5 mt-4 text-xs font-bold text-white rounded-default cursor-pointer transition-all active:scale-[0.98] ${
+                      pendingRetrain ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary hover:bg-[#00522b]'
+                    } disabled:opacity-50 shadow-[0_2px_6px_rgba(0,0,0,0.08)]`}
+                  >
+                    {mlTraining ? (
+                      <span className="flex items-center justify-center gap-2"><span className="border-2 border-white border-t-transparent w-3.5 h-3.5 rounded-full animate-spin" /> Retraining...</span>
+                    ) : 'Retrain AI Model'}
+                  </button>
                 </div>
               </div>
             )}
@@ -1745,17 +1954,6 @@ function App() {
           </div>
           <span className="font-sans font-bold text-xl tracking-tight text-on-background">
             Naira<span className="text-primary">AI</span>
-          </span>
-        </div>
-
-        {/* Sync Status indicator */}
-        <div className="flex items-center gap-2 text-xs bg-surface-lowest border border-outline-variant px-3.5 py-1.5 rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.01)]">
-          <span className={`w-2 h-2 rounded-full ${
-            systemStatus === 'connected' ? 'bg-primary' : 
-            systemStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-error'
-          }`} />
-          <span className="font-mono text-label-sm text-slate-500 uppercase">
-            STATUS: {systemStatus === 'connected' ? 'ONLINE' : systemStatus === 'checking' ? 'SYNCING' : 'OFFLINE'}
           </span>
         </div>
       </div>

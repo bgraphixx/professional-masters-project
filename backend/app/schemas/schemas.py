@@ -8,6 +8,7 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=1, max_length=255)
     monthly_income: float = Field(default=0.0, ge=0.0)
+    profession: Optional[str] = Field(default=None, max_length=100)
     consent_given: bool = Field(default=False)
 
 
@@ -20,6 +21,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(default=None, min_length=8, max_length=100)
     full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     monthly_income: Optional[float] = Field(default=None, ge=0.0)
+    profession: Optional[str] = Field(default=None, max_length=100)
     consent_given: Optional[bool] = None
 
 
@@ -30,6 +32,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     monthly_income: float
+    profession: Optional[str] = None
     consent_given: bool
     consent_date: Optional[datetime] = None
     created_at: datetime
@@ -42,6 +45,11 @@ class LoginRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=100)
 
 
 class CategoryResponse(BaseModel):

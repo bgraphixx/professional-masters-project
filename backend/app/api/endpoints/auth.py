@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user
 from app.db.session import get_db
 from app.db.models import User
-from app.schemas.schemas import UserCreate, UserResponse, LoginRequest, MessageResponse
+from app.schemas.schemas import UserCreate, UserResponse, LoginRequest, MessageResponse, UserUpdate, PasswordChangeRequest
 
 router = APIRouter()
 
@@ -32,6 +32,7 @@ async def register(
         password_hash=hashed_pwd,
         full_name=user_in.full_name,
         monthly_income=user_in.monthly_income,
+        profession=user_in.profession,
         consent_given=user_in.consent_given,
         consent_date=consent_date
     )
@@ -94,3 +95,38 @@ async def logout(response: Response):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    user_in: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if user_in.full_name is not None:
+        current_user.full_name = user_in.full_name
+    if user_in.monthly_income is not None:
+        current_user.monthly_income = user_in.monthly_income
+    if user_in.profession is not None:
+        current_user.profession = user_in.profession
+
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.put("/password", response_model=MessageResponse)
+async def update_password(
+    pwd_in: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if not verify_password(pwd_in.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password."
+        )
+    
+    current_user.password_hash = hash_password(pwd_in.new_password)
+    db.add(current_user)
+    await db.commit()
+    return {"message": "Password updated successfully."}
