@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { apiGet, apiPut, apiDelete, apiPost, apiErrorDetail } from '../api';
+import { apiGet, apiPatch, apiDelete, apiPost, apiErrorDetail } from '../api';
 import { useAsyncEffect } from '../hooks';
 import Banner from './Banner';
 import type { MlStats, MlTrainResponse, MessageResponse, Transaction, UserProfile } from '../types';
@@ -54,7 +54,7 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const { ok, data } = await apiPut<UserProfile>('/auth/profile', {
+      const { ok, data } = await apiPatch<UserProfile>('/auth/me', {
         full_name: profileFullName,
         monthly_income: parseFloat(profileIncome) || 0,
         profession: profileProfession,
@@ -76,7 +76,7 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const { ok, data } = await apiPut<MessageResponse>('/auth/password', {
+      const { ok, data } = await apiPost<MessageResponse>('/auth/me/password', {
         current_password: profileCurrentPassword,
         new_password: profileNewPassword,
       });

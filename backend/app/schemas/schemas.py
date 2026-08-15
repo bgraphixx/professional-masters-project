@@ -16,20 +16,12 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
 
 
-class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    password: Optional[str] = Field(default=None, min_length=8, max_length=100)
-    full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    monthly_income: Optional[float] = Field(default=None, ge=0.0)
-    profession: Optional[str] = Field(default=None, max_length=100)
-    consent_given: Optional[bool] = None
-
-
 class AccountSelfUpdate(BaseModel):
     """Fields a user may self-update via PATCH /auth/me. Deliberately excludes
     email and password — those go through their own dedicated flows."""
     full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     monthly_income: Optional[float] = Field(default=None, ge=0.0)
+    profession: Optional[str] = Field(default=None, max_length=100)
 
 
 class UserResponse(BaseModel):

@@ -35,8 +35,8 @@ describe('Settings tab', () => {
     let receivedBody: Record<string, unknown> = {};
     await renderLoggedIn([
       {
-        method: 'PUT',
-        test: /\/auth\/profile$/,
+        method: 'PATCH',
+        test: /\/auth\/me$/,
         handler: (_url, init) => {
           receivedBody = jsonBody(init);
           // Server normalizes the name differently than what was typed.
@@ -58,7 +58,7 @@ describe('Settings tab', () => {
   it('re-enables the Save button after a failed profile update, without clobbering the typed value', async () => {
     const user = userEvent.setup();
     await renderLoggedIn([
-      { method: 'PUT', test: /\/auth\/profile$/, handler: () => ({ status: 400, body: { detail: 'Something went wrong.' } }) },
+      { method: 'PATCH', test: /\/auth\/me$/, handler: () => ({ status: 400, body: { detail: 'Something went wrong.' } }) },
     ]);
     await gotoSettingsTab(user);
 
@@ -74,7 +74,7 @@ describe('Settings tab', () => {
   it('clears the password fields after a successful password change', async () => {
     const user = userEvent.setup();
     await renderLoggedIn([
-      { method: 'PUT', test: /\/auth\/password$/, handler: () => ({ status: 200, body: { message: 'Password updated successfully.' } }) },
+      { method: 'POST', test: /\/auth\/me\/password$/, handler: () => ({ status: 200, body: { message: 'Password updated successfully.' } }) },
     ]);
     await gotoSettingsTab(user);
 
@@ -89,7 +89,7 @@ describe('Settings tab', () => {
   it('keeps the typed passwords when the current password is wrong', async () => {
     const user = userEvent.setup();
     await renderLoggedIn([
-      { method: 'PUT', test: /\/auth\/password$/, handler: () => ({ status: 400, body: { detail: 'Incorrect current password.' } }) },
+      { method: 'POST', test: /\/auth\/me\/password$/, handler: () => ({ status: 400, body: { detail: 'Incorrect current password.' } }) },
     ]);
     await gotoSettingsTab(user);
 
