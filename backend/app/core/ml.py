@@ -5,6 +5,50 @@ from typing import Tuple
 
 _pipeline = None
 
+# ── Narration normalisation ──────────────────────────────────────────────
+#
+# Bank-exported narrations (PDF/CSV statement imports) carry card-processor
+# noise that plain hand-typed descriptions never do: masked PANs, STAN/RRN/
+# Term IDs, and raw phone/account numbers. These tokens are unique per
+# transaction, so they add no categorisation signal and only dilute the
+# TF-IDF vocabulary. Each pattern below is scoped to a specific noise shape
+# rather than stripping digits generally, so plain descriptions like
+# "Paid ₦45000 deposit" or "Term 2 school fees" pass through untouched.
+_PAN_RE = re.compile(r"\b(?:PAN\s+)?\d{4,6}[xX]{4,}\d{2,6}\b", re.IGNORECASE)
+_STAN_RE = re.compile(r"\bSTAN\s+\d{4,}\b", re.IGNORECASE)
+_RRN_RE = re.compile(r"\bRRN\s+[A-Za-z0-9-]{6,}\b", re.IGNORECASE)
+_TERM_ID_RE = re.compile(r"\bTerm\s+[A-Za-z0-9]{4,}\b", re.IGNORECASE)
+# Phone numbers and account numbers are both long runs of consecutive
+# digits (10+); matching the run itself (not \b-delimited) also catches
+# digits fused onto a name with no separating space, e.g. "IBEH7085103640".
+_LONG_DIGIT_RUN_RE = re.compile(r"\d{10,}")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def normalize_narration(text: str) -> str:
+    """Strip bank-specific noise tokens (masked PANs, STAN/RRN/Term IDs,
+    raw phone/account numbers) from a transaction narration.
+
+    Conservative by design: only removes text matching these specific
+    shapes. If none match, the input is returned completely unchanged
+    (no whitespace normalisation either), so plain manual/CSV descriptions
+    are never touched.
+    """
+    if not text:
+        return text
+
+    cleaned = _PAN_RE.sub(" ", text)
+    cleaned = _STAN_RE.sub(" ", cleaned)
+    cleaned = _RRN_RE.sub(" ", cleaned)
+    cleaned = _TERM_ID_RE.sub(" ", cleaned)
+    cleaned = _LONG_DIGIT_RUN_RE.sub(" ", cleaned)
+
+    if cleaned == text:
+        return text
+
+    return _WHITESPACE_RE.sub(" ", cleaned).strip()
+
+
 def load_model():
     global _pipeline
     if _pipeline is None:
@@ -48,6 +92,14 @@ FALLBACK_RULES = [
     (["boutique", "tailor", "ankara", "shoe repair", "designer wear", "traditional attire", "shopping complex"], "Clothing"),
     # Business Expenses
     (["business registration", "cac registration", "office supplies", "stationery purchase", "wholesale goods", "pos terminal", "warehouse storage", "raw materials", "inventory stock", "business marketing"], "Business Expenses"),
+    # Bank Charges & Fees
+    (["stamp duty", "sms alert fee", "sms alert charge", "transfer commission", "vat on fee", "maintenance fee", "card maintenance", "account maintenance", "cot charge", "bank charge", "service fee deduction", "commission on turnover"], "Bank Charges & Fees"),
+    # Loan / Debt Repayment
+    (["loan repayment", "loan installment", "loan instalment", "debt repayment", "credit facility repayment", "overdraft repayment", "loan payment to", "paylater repayment"], "Loan / Debt Repayment"),
+    # Internal Transfer / Savings
+    (["cowrywise", "piggyvest", "fixed deposit booking", "fixed deposit pre-liquidation", "savings plan funding", "self transfer", "transfer to own account", "target savings", "investment wallet funding"], "Internal Transfer / Savings"),
+    # Religious Giving / Donations
+    (["tithe", "offering payment", "church payment", "church donation", "mosque donation", "zakat", "sadaqah", "harvest donation", "building fund donation"], "Religious Giving / Donations"),
 ]
 
 def check_rules(description: str) -> Tuple[str, float]:
@@ -61,6 +113,10 @@ def check_rules(description: str) -> Tuple[str, float]:
     return "", 0.0
 
 def predict_category(description: str) -> Tuple[str, float, bool]:
+    # Normalise once, up front, so the rule-based check and the ML model see
+    # the exact same text — this must match what the model was trained on.
+    description = normalize_narration(description)
+
     # 1. First check high confidence rule match
     rule_category, rule_conf = check_rules(description)
     if rule_category:
@@ -78,14 +134,21 @@ def predict_category(description: str) -> Tuple[str, float, bool]:
             max_idx = probs.argmax()
             predicted_class = classes[max_idx]
             confidence = float(probs[max_idx])
-            is_flagged = confidence < 0.60
-            return predicted_class, confidence, is_flagged
+            if confidence < 0.60:
+                # Below this threshold the model's "best guess" isn't a
+                # reliable signal — surface it as Uncategorised rather than
+                # a specific-but-likely-wrong category.
+                return "Uncategorised", confidence, True
+            return predicted_class, confidence, False
         except Exception as e:
             print(f"ML Model prediction error: {e}")
             pass
 
-    # 3. Default fallback
-    return "Food & Groceries", 0.40, True
+    # 3. No rule match and no (usable) ML model: rather than guessing a
+    # concrete category, route to the explicit placeholder category so the
+    # user resolves it manually instead of silently defaulting to
+    # "Food & Groceries".
+    return "Uncategorised", 0.0, True
 
 def retrain_model(user_labeled_data: list) -> Tuple[int, int]:
     from sklearn.feature_extraction.text import TfidfVectorizer
@@ -96,6 +159,10 @@ def retrain_model(user_labeled_data: list) -> Tuple[int, int]:
     # Extract descriptions and categories from mock data and user data
     descriptions = [item[0] for item in MOCK_TRANSACTIONS_DATA] + [item[0] for item in user_labeled_data]
     categories = [item[1] for item in MOCK_TRANSACTIONS_DATA] + [item[1] for item in user_labeled_data]
+
+    # Normalise with the exact same function used at inference time
+    # (predict_category), so training and prediction see identical text.
+    descriptions = [normalize_narration(d) for d in descriptions]
 
     # Create the text classification pipeline
     pipeline = Pipeline([

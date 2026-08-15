@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from app.core.config import settings
+from app.core.ml import normalize_narration
 from app.db.session import Base
 from app.db.models import Category
 from app.db.session import engine
@@ -35,9 +36,21 @@ DEFAULT_CATEGORIES = [
     {"name": "Clothing", "type": "expense", "is_default": True},
     {"name": "Business Expenses", "type": "expense", "is_default": True},
     {"name": "Other Expense", "type": "expense", "is_default": True},
+    {"name": "Bank Charges & Fees", "type": "expense", "is_default": True},
+    {"name": "Loan / Debt Repayment", "type": "expense", "is_default": True},
+    {"name": "Religious Giving / Donations", "type": "expense", "is_default": True},
     {"name": "Salary", "type": "income", "is_default": True},
     {"name": "Business Income", "type": "income", "is_default": True},
     {"name": "Other Income", "type": "income", "is_default": True},
+    # Not income or expense: self-transfers (savings apps, fixed deposits)
+    # move money between the user's own accounts and are excluded from
+    # income/expense totals in the /transactions/report endpoint.
+    {"name": "Internal Transfer / Savings", "type": "transfer", "is_default": True},
+    # Catch-all for narrations with no extractable merchant signal (pure
+    # card metadata, single-word entries like "test"/"gift"/"payment").
+    # predict_category() routes these here at 0.0 confidence + is_flagged
+    # instead of guessing a real category.
+    {"name": "Uncategorised", "type": "uncategorised", "is_default": True},
 ]
 
 # High quality mock Nigerian transactions training data
@@ -212,6 +225,61 @@ MOCK_TRANSACTIONS_DATA = [
     ("Loan repayment received from friend", "Other Income"),
     ("Grant payment received from NGO", "Other Income"),
     ("Miscellaneous credit alert to account", "Other Income"),
+
+    # Bank Charges & Fees
+    ("SMS alert fee deducted for the month", "Bank Charges & Fees"),
+    ("Stamp duty charge on account", "Bank Charges & Fees"),
+    ("Card maintenance fee deduction", "Bank Charges & Fees"),
+    ("VAT charge on account maintenance fee", "Bank Charges & Fees"),
+    ("Transfer commission fee for outward payment", "Bank Charges & Fees"),
+    ("SMS Alert Charge NIP", "Bank Charges & Fees"),
+    ("Stamp Duty COT Chg", "Bank Charges & Fees"),
+    ("Acct Maint Fee Q3", "Bank Charges & Fees"),
+
+    # Loan / Debt Repayment
+    ("Loan repayment for personal loan", "Loan / Debt Repayment"),
+    ("Monthly loan installment payment", "Loan / Debt Repayment"),
+    ("Overdraft repayment to bank", "Loan / Debt Repayment"),
+    ("Debt repayment to credit union", "Loan / Debt Repayment"),
+    ("Paylater repayment for purchase", "Loan / Debt Repayment"),
+    ("Loan Repymt Trf", "Loan / Debt Repayment"),
+    ("Debt Repayment NIP", "Loan / Debt Repayment"),
+    ("Credit Facility Repayment", "Loan / Debt Repayment"),
+
+    # Internal Transfer / Savings
+    ("Cowrywise savings plan funding", "Internal Transfer / Savings"),
+    ("PiggyVest target savings deposit", "Internal Transfer / Savings"),
+    ("Fixed deposit booking for 90 days", "Internal Transfer / Savings"),
+    ("Fixed deposit pre-liquidation withdrawal", "Internal Transfer / Savings"),
+    ("Self transfer to savings account", "Internal Transfer / Savings"),
+    ("Transfer to own account for safekeeping", "Internal Transfer / Savings"),
+    ("Investment wallet funding via app", "Internal Transfer / Savings"),
+    ("Savings Plan Funding NIP", "Internal Transfer / Savings"),
+
+    # Religious Giving / Donations
+    ("Tithe payment to church", "Religious Giving / Donations"),
+    ("Sunday offering payment", "Religious Giving / Donations"),
+    ("Church building fund donation", "Religious Giving / Donations"),
+    ("Mosque donation for Ramadan", "Religious Giving / Donations"),
+    ("Zakat payment for the year", "Religious Giving / Donations"),
+    ("Sadaqah given to charity", "Religious Giving / Donations"),
+    ("Church Payment NIP", "Religious Giving / Donations"),
+    ("Harvest Donation Trf", "Religious Giving / Donations"),
+
+    # Uncategorised — narrations with no extractable merchant signal, either
+    # because they're pure card-processor metadata with the noise tokens
+    # already stripped by normalize_narration(), or because the raw text
+    # itself is a one-word placeholder a user typed with no real detail.
+    ("test", "Uncategorised"),
+    ("chips", "Uncategorised"),
+    ("payment", "Uncategorised"),
+    ("gift", "Uncategorised"),
+    ("investment", "Uncategorised"),
+    ("Debt", "Uncategorised"),
+    ("website", "Uncategorised"),
+    ("Refund", "Uncategorised"),
+    ("Reversal of transaction", "Uncategorised"),
+    ("Card Ttx Amount successful", "Uncategorised"),
 ]
 
 def _new_pipeline() -> Pipeline:
@@ -223,7 +291,10 @@ def _new_pipeline() -> Pipeline:
 
 def train_baseline_model():
     print("Training baseline ML categorization model...")
-    descriptions = [item[0] for item in MOCK_TRANSACTIONS_DATA]
+    # Normalise with the exact same function used at inference time
+    # (app.core.ml.predict_category), so training and prediction see
+    # identical text.
+    descriptions = [normalize_narration(item[0]) for item in MOCK_TRANSACTIONS_DATA]
     categories = [item[1] for item in MOCK_TRANSACTIONS_DATA]
 
     # 70/15/15 stratified train/validation/test split, so there's a real,

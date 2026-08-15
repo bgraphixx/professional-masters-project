@@ -60,6 +60,29 @@ async def test_report_totals_and_breakdown(auth_client: AsyncClient):
     assert sum(data["category_breakdown"].values()) == pytest.approx(115000.0)
 
 
+async def test_report_excludes_internal_transfers_from_totals(auth_client: AsyncClient):
+    """Self-transfers (savings apps, fixed deposits) move money between the
+    user's own accounts and must not inflate income/expense totals, even
+    though they still show up in the category breakdown."""
+    transfer_cat = await _category_id(auth_client, "transfer")
+    today = date.today().isoformat()
+
+    await auth_client.post("/transactions", json={
+        "description": "Cowrywise savings plan funding",
+        "amount": 20000.0,
+        "type": "expense",
+        "transaction_date": today,
+        "category_id": transfer_cat,
+    })
+
+    resp = await auth_client.get(f"/transactions/report?month={MONTH}&year={YEAR}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_income"] == 0.0
+    assert data["total_expense"] == 0.0
+    assert data["category_breakdown"]["Internal Transfer / Savings"] == 20000.0
+
+
 async def test_report_includes_budget_utilisation(auth_client: AsyncClient):
     expense_cat = await _category_id(auth_client, "expense")
     today = date.today().isoformat()

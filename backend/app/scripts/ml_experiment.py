@@ -22,11 +22,15 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.svm import LinearSVC
 
+from app.core.ml import normalize_narration
 from app.scripts.seed import MOCK_TRANSACTIONS_DATA
 
 
 def get_split():
-    descriptions = [item[0] for item in MOCK_TRANSACTIONS_DATA]
+    # Same normalisation applied at training (seed.py) and inference
+    # (app.core.ml.predict_category) time, so this experiment measures the
+    # configuration that will actually run in production.
+    descriptions = [normalize_narration(item[0]) for item in MOCK_TRANSACTIONS_DATA]
     categories = [item[1] for item in MOCK_TRANSACTIONS_DATA]
 
     X_train, X_temp, y_train, y_temp = train_test_split(

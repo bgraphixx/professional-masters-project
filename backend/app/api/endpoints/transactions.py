@@ -102,10 +102,16 @@ async def get_monthly_report(
 
     for tx in transactions:
         amount = float(tx.amount)
-        if tx.type == "income":
-            total_income += amount
-        else:
-            total_expense += amount
+        # Self-transfers (savings apps, fixed deposits) move money between
+        # the user's own accounts rather than earning or spending it, so
+        # they're excluded from income/expense totals — but still shown in
+        # the category breakdown for visibility.
+        is_internal_transfer = tx.category is not None and tx.category.type == "transfer"
+        if not is_internal_transfer:
+            if tx.type == "income":
+                total_income += amount
+            else:
+                total_expense += amount
         cat_name = tx.category.name if tx.category else "Uncategorized"
         category_breakdown[cat_name] = category_breakdown.get(cat_name, 0.0) + amount
 
