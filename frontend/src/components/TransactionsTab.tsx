@@ -1,12 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Plus, Upload, Trash2, Filter, FileSpreadsheet, X, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
-import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from '../api';
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload, apiErrorDetail } from '../api';
+import { useAsyncEffect } from '../hooks';
 import { formatNaira, exportTransactionsCSV } from '../utils';
-import type { Transaction, Category } from '../types';
+import type { Transaction, Category, CSVImportResponse } from '../types';
 
 const ITEMS_PER_PAGE = 20;
+
+interface NewTransactionPayload {
+  description: string;
+  amount: number;
+  type: 'income' | 'expense';
+  transaction_date: string;
+  source: string;
+  category_id?: string;
+}
+
+function errorMessageOf(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 interface TransactionsTabProps {
   onCategoryCorrected: () => void;
@@ -51,15 +65,18 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
     if (ok) setTransactions(data);
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  useAsyncEffect(fetchCategories, []);
 
-  useEffect(() => {
+  // Reset to page 1 whenever the filters change, using the React-recommended
+  // "adjust state during render" pattern instead of an effect (avoids
+  // react-hooks/set-state-in-effect and the extra render an effect would cost).
+  const [prevFilters, setPrevFilters] = useState({ filterType, filterCategoryId });
+  if (prevFilters.filterType !== filterType || prevFilters.filterCategoryId !== filterCategoryId) {
+    setPrevFilters({ filterType, filterCategoryId });
     setCurrentPage(1);
-    fetchTransactions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterType, filterCategoryId]);
+  }
+
+  useAsyncEffect(fetchTransactions, [filterType, filterCategoryId]);
 
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
@@ -70,7 +87,7 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
     e.preventDefault();
     setLoading(true);
     try {
-      const payload: any = {
+      const payload: NewTransactionPayload = {
         description: txDesc,
         amount: parseFloat(txAmount),
         type: txType,
@@ -79,8 +96,8 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
       };
       if (txCategoryId) payload.category_id = txCategoryId;
 
-      const { ok, data } = await apiPost('/transactions', payload);
-      if (!ok) throw new Error(data?.detail || 'Error adding transaction');
+      const { ok, data } = await apiPost<Transaction>('/transactions', payload);
+      if (!ok) throw new Error(apiErrorDetail(data, 'Error adding transaction'));
 
       setTxDesc('');
       setTxAmount('');
@@ -89,20 +106,20 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
       setTxCategoryId('');
       setIsAddModalOpen(false);
       fetchTransactions();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(errorMessageOf(err, 'Error adding transaction'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdateCategory = async (txId: string, categoryId: string) => {
-    const { ok, data } = await apiPut(`/transactions/${txId}`, { category_id: categoryId || null });
+    const { ok, data } = await apiPut<Transaction>(`/transactions/${txId}`, { category_id: categoryId || null });
     if (ok) {
       onCategoryCorrected();
       fetchTransactions();
     } else {
-      alert(data?.detail || 'Failed to update category');
+      alert(apiErrorDetail(data, 'Failed to update category'));
     }
   };
 
@@ -154,8 +171,8 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
     }
 
     try {
-      const { ok, data } = await apiUpload(endpoint, formData);
-      if (!ok) throw new Error(data?.detail || 'Importing failed');
+      const { ok, data } = await apiUpload<CSVImportResponse>(endpoint, formData);
+      if (!ok) throw new Error(apiErrorDetail(data, 'Importing failed'));
 
       setImportSummary(data.message);
       setStatementFile(null);
@@ -166,8 +183,8 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
         setIsImportModalOpen(false);
         setImportSummary('');
       }, 2500);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(errorMessageOf(err, 'Importing failed'));
     } finally {
       setLoading(false);
     }

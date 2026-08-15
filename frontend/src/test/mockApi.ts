@@ -32,6 +32,6 @@ export function installMockFetch(routes: MockRoute[]) {
   return fetchMock;
 }
 
-export function jsonBody(init?: RequestInit): any {
+export function jsonBody(init?: RequestInit): Record<string, unknown> {
   return init?.body ? JSON.parse(init.body as string) : {};
 }

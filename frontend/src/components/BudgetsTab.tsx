@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Filter, Trash2, AlertTriangle, PiggyBank, X } from 'lucide-react';
-import { apiGet, apiPost, apiPut, apiDelete } from '../api';
+import { apiGet, apiPost, apiPut, apiDelete, apiErrorDetail } from '../api';
+import { useAsyncEffect } from '../hooks';
 import { formatNaira, MONTH_NAMES } from '../utils';
 import type { Budget, Category } from '../types';
+
+function errorMessageOf(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export default function BudgetsTab() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -16,11 +21,9 @@ export default function BudgetsTab() {
   const [budgetCategoryId, setBudgetCategoryId] = useState('');
   const [budgetLimit, setBudgetLimit] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      const { ok, data } = await apiGet<Category[]>('/transactions/categories');
-      if (ok) setCategories(data);
-    })();
+  useAsyncEffect(async () => {
+    const { ok, data } = await apiGet<Category[]>('/transactions/categories');
+    if (ok) setCategories(data);
   }, []);
 
   const fetchBudgets = async () => {
@@ -33,32 +36,29 @@ export default function BudgetsTab() {
     }
   };
 
-  useEffect(() => {
-    fetchBudgets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [budgetMonth, budgetYear]);
+  useAsyncEffect(fetchBudgets, [budgetMonth, budgetYear]);
 
   const handleSaveBudget = async (e: React.FormEvent) => {
     e.preventDefault();
     setBudgetLoading(true);
     try {
       const result = editingBudget
-        ? await apiPut(`/budgets/${editingBudget.id}`, { limit_amount: parseFloat(budgetLimit) })
-        : await apiPost('/budgets', {
+        ? await apiPut<Budget>(`/budgets/${editingBudget.id}`, { limit_amount: parseFloat(budgetLimit) })
+        : await apiPost<Budget>('/budgets', {
             category_id: budgetCategoryId,
             limit_amount: parseFloat(budgetLimit),
             month: budgetMonth,
             year: budgetYear,
           });
-      if (!result.ok) throw new Error(result.data?.detail);
+      if (!result.ok) throw new Error(apiErrorDetail(result.data, 'Failed to save budget'));
 
       setIsBudgetModalOpen(false);
       setEditingBudget(null);
       setBudgetCategoryId('');
       setBudgetLimit('');
       fetchBudgets();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(errorMessageOf(err, 'Failed to save budget'));
     } finally {
       setBudgetLoading(false);
     }

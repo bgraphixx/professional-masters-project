@@ -32,7 +32,7 @@ describe('Settings tab', () => {
 
   it('updates the profile and re-syncs the form from the server response', async () => {
     const user = userEvent.setup();
-    let receivedBody: any = null;
+    let receivedBody: Record<string, unknown> = {};
     await renderLoggedIn([
       {
         method: 'PUT',

@@ -66,6 +66,13 @@ export interface AdminUser {
   transaction_count: number;
 }
 
+export interface AdminUserListResponse {
+  total: number;
+  skip: number;
+  limit: number;
+  users: AdminUser[];
+}
+
 export interface AdminMlMetrics {
   train_samples: number | null;
   validation_samples: number | null;
@@ -84,4 +91,22 @@ export interface MlStats {
   user_samples: number;
   total_samples: number;
   last_trained?: string;
+}
+
+export interface MlTrainResponse {
+  status: string;
+  default_samples: number;
+  user_samples: number;
+  total_samples: number;
+  message: string;
+}
+
+export interface CSVImportResponse {
+  message: string;
+  total_parsed: number;
+  total_imported: number;
+}
+
+export interface MessageResponse {
+  message: string;
 }

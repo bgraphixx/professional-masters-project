@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { apiGet, apiPut, apiDelete, apiPost } from '../api';
+import { apiGet, apiPut, apiDelete, apiPost, apiErrorDetail } from '../api';
+import { useAsyncEffect } from '../hooks';
 import Banner from './Banner';
-import type { MlStats, Transaction, UserProfile } from '../types';
+import type { MlStats, MlTrainResponse, MessageResponse, Transaction, UserProfile } from '../types';
+
+function errorMessageOf(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 interface SettingsTabProps {
   user: UserProfile;
@@ -26,17 +31,21 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
   const [mlStats, setMlStats] = useState<MlStats | null>(null);
   const [mlTraining, setMlTraining] = useState(false);
 
-  useEffect(() => {
+  // Re-sync the form fields whenever a fresh `user` comes in (e.g. after a
+  // successful save). Adjusting state during render — rather than in a
+  // useEffect — is the React-recommended pattern for "reset state when a
+  // prop changes" and avoids react-hooks/set-state-in-effect.
+  const [syncedUser, setSyncedUser] = useState(user);
+  if (syncedUser !== user) {
+    setSyncedUser(user);
     setProfileFullName(user.full_name);
     setProfileIncome(String(user.monthly_income));
     setProfileProfession(user.profession || '');
-  }, [user]);
+  }
 
-  useEffect(() => {
-    (async () => {
-      const { ok, data } = await apiGet<Transaction[]>('/transactions');
-      if (ok) setTransactions(data);
-    })();
+  useAsyncEffect(async () => {
+    const { ok, data } = await apiGet<Transaction[]>('/transactions');
+    if (ok) setTransactions(data);
   }, []);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -45,17 +54,17 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const { ok, data } = await apiPut('/auth/profile', {
+      const { ok, data } = await apiPut<UserProfile>('/auth/profile', {
         full_name: profileFullName,
         monthly_income: parseFloat(profileIncome) || 0,
         profession: profileProfession,
       });
-      if (!ok) throw new Error(data?.detail || 'Failed to update profile');
+      if (!ok) throw new Error(apiErrorDetail(data, 'Failed to update profile'));
       onUserUpdated(data);
       setSuccessMessage('Profile updated successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err) {
+      setErrorMessage(errorMessageOf(err, 'Failed to update profile'));
     } finally {
       setLoading(false);
     }
@@ -67,17 +76,17 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const { ok, data } = await apiPut('/auth/password', {
+      const { ok, data } = await apiPut<MessageResponse>('/auth/password', {
         current_password: profileCurrentPassword,
         new_password: profileNewPassword,
       });
-      if (!ok) throw new Error(data?.detail || 'Failed to update password');
+      if (!ok) throw new Error(apiErrorDetail(data, 'Failed to update password'));
       setSuccessMessage('Password updated successfully!');
       setProfileCurrentPassword('');
       setProfileNewPassword('');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err) {
+      setErrorMessage(errorMessageOf(err, 'Failed to update password'));
     } finally {
       setLoading(false);
     }
@@ -89,14 +98,14 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const { ok, data } = await apiDelete('/transactions/all');
-      if (!ok) throw new Error(data?.detail || 'Failed to delete transactions');
+      const { ok, data } = await apiDelete<MessageResponse>('/transactions/all');
+      if (!ok) throw new Error(apiErrorDetail(data, 'Failed to delete transactions'));
       setSuccessMessage('All transactions have been deleted.');
       setTimeout(() => setSuccessMessage(''), 3000);
       const refetch = await apiGet<Transaction[]>('/transactions');
       if (refetch.ok) setTransactions(refetch.data);
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err) {
+      setErrorMessage(errorMessageOf(err, 'Failed to delete transactions'));
     } finally {
       setLoading(false);
     }
@@ -107,8 +116,8 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const { ok, data } = await apiPost('/ml/train');
-      if (!ok) throw new Error(data?.detail || 'Failed to retrain model');
+      const { ok, data } = await apiPost<MlTrainResponse>('/ml/train');
+      if (!ok) throw new Error(apiErrorDetail(data, 'Failed to retrain model'));
       setMlStats({
         default_samples: data.default_samples,
         user_samples: data.user_samples,
@@ -120,8 +129,8 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
       setTimeout(() => setSuccessMessage(''), 3000);
       const refetch = await apiGet<Transaction[]>('/transactions');
       if (refetch.ok) setTransactions(refetch.data);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred during model retraining.');
+    } catch (err) {
+      setErrorMessage(errorMessageOf(err, 'An error occurred during model retraining.'));
       setTimeout(() => setErrorMessage(''), 4000);
     } finally {
       setMlTraining(false);

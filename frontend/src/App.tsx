@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './App.css';
 import { apiGet, apiPost } from './api';
+import { useAsyncEffect } from './hooks';
 import { formatNaira } from './utils';
 import type { TabId, UserProfile } from './types';
 import AuthScreen from './components/AuthScreen';
@@ -26,11 +27,9 @@ function App() {
   // and SettingsTab's ML console (reads it to prompt a retrain).
   const [pendingRetrain, setPendingRetrain] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const { ok, data } = await apiGet<UserProfile>('/auth/me');
-      if (ok) setUser(data);
-    })();
+  useAsyncEffect(async () => {
+    const { ok, data } = await apiGet<UserProfile>('/auth/me');
+    if (ok) setUser(data);
   }, []);
 
   const handleLogout = async () => {

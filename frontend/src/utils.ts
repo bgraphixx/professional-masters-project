@@ -15,6 +15,14 @@ export function formatNaira(amount: number): string {
   }).format(amount);
 }
 
+export function computeSavingsTrend(sortedDates: string[], balanceChangeMap: Record<string, number>) {
+  let cumulative = 0;
+  return sortedDates.map((d) => {
+    cumulative += balanceChangeMap[d];
+    return { date: d, Savings: cumulative };
+  });
+}
+
 export function exportTransactionsCSV(transactions: Transaction[]) {
   if (transactions.length === 0) return;
   const headers = ['Date', 'Description', 'Category', 'Amount', 'Type', 'Source'];

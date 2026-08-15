@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { TrendingUp, TrendingDown, Coins, Percent } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
   PieChart, Pie, Cell, LineChart, Line,
 } from 'recharts';
 import { apiGet } from '../api';
-import { formatNaira, COLORS } from '../utils';
+import { useAsyncEffect } from '../hooks';
+import { formatNaira, computeSavingsTrend, COLORS } from '../utils';
 import type { Transaction, TabId } from '../types';
+
+const currencyTooltipFormatter = (value: number | string) => formatNaira(Number(value));
 
 interface OverviewTabProps {
   setActiveTab: (tab: TabId) => void;
@@ -15,11 +18,9 @@ interface OverviewTabProps {
 export default function OverviewTab({ setActiveTab }: OverviewTabProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      const { ok, data } = await apiGet<Transaction[]>('/transactions');
-      if (ok) setTransactions(data);
-    })();
+  useAsyncEffect(async () => {
+    const { ok, data } = await apiGet<Transaction[]>('/transactions');
+    if (ok) setTransactions(data);
   }, []);
 
   const totalIncome = transactions
@@ -63,11 +64,7 @@ export default function OverviewTab({ setActiveTab }: OverviewTabProps) {
     balanceChangeMap[d] = (balanceChangeMap[d] || 0) + change;
   });
   const sortedDates = Object.keys(balanceChangeMap).sort();
-  let cumulative = 0;
-  const savingsTrendData = sortedDates.map((d) => {
-    cumulative += balanceChangeMap[d];
-    return { date: d, Savings: cumulative };
-  });
+  const savingsTrendData = computeSavingsTrend(sortedDates, balanceChangeMap);
 
   return (
     <div className="space-y-6">
@@ -133,7 +130,7 @@ export default function OverviewTab({ setActiveTab }: OverviewTabProps) {
                 <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} tickLine={false} />
                   <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                  <Tooltip formatter={(value: any) => formatNaira(Number(value))} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
+                  <Tooltip formatter={currencyTooltipFormatter} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
                   <Legend verticalAlign="top" height={36} iconSize={10} wrapperStyle={{ fontFamily: 'Inter', fontSize: '11px' }} />
                   <Bar dataKey="Income" fill="#006a39" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="Expense" fill="#a23546" radius={[3, 3, 0, 0]} />
@@ -169,7 +166,7 @@ export default function OverviewTab({ setActiveTab }: OverviewTabProps) {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: any) => formatNaira(Number(value))} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
+                  <Tooltip formatter={currencyTooltipFormatter} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -199,7 +196,7 @@ export default function OverviewTab({ setActiveTab }: OverviewTabProps) {
               <LineChart data={savingsTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} tickLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} />
-                <Tooltip formatter={(value: any) => formatNaira(Number(value))} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
+                <Tooltip formatter={currencyTooltipFormatter} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'Inter' }} />
                 <Line type="monotone" dataKey="Savings" stroke="#0058be" strokeWidth={2.5} activeDot={{ r: 6 }} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>

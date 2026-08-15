@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Sparkles, TrendingUp, AlertTriangle, CheckCircle2, X, ShieldCheck } from 'lucide-react';
 import { apiGet, apiPatch, apiDelete } from '../api';
+import { useAsyncEffect } from '../hooks';
 import { formatNaira } from '../utils';
 import type { Insight, Transaction, UserProfile } from '../types';
 
@@ -26,12 +27,10 @@ export default function InsightsTab({ user }: InsightsTabProps) {
   // Bug fix: this tab previously never loaded insights until the user
   // manually clicked "Refresh Insights" — every other tab auto-fetches on
   // open, so do the same here.
-  useEffect(() => {
+  useAsyncEffect(async () => {
     fetchInsights();
-    (async () => {
-      const { ok, data } = await apiGet<Transaction[]>('/transactions');
-      if (ok) setTransactions(data);
-    })();
+    const { ok, data } = await apiGet<Transaction[]>('/transactions');
+    if (ok) setTransactions(data);
   }, []);
 
   const handleMarkInsightRead = async (id: string) => {

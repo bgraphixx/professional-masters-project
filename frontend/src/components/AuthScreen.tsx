@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Mail, Lock, User as UserIcon, Wallet, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { apiPost } from '../api';
+import { apiPost, apiErrorDetail } from '../api';
 import type { UserProfile } from '../types';
+
+function errorMessageOf(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 interface AuthScreenProps {
   onAuthenticated: (user: UserProfile) => void;
@@ -32,19 +36,19 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
     setLoading(true);
     try {
-      const { ok, data } = await apiPost('/auth/register', {
+      const { ok, data } = await apiPost<UserProfile>('/auth/register', {
         email,
         password,
         full_name: fullName,
         monthly_income: parseFloat(monthlyIncome) || 0,
         consent_given: consentGiven,
       });
-      if (!ok) throw new Error(data?.detail || 'Registration failed');
+      if (!ok) throw new Error(apiErrorDetail(data, 'Registration failed'));
 
       setSuccessMessage('Registration successful!');
       setTimeout(() => onAuthenticated(data), 1000);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred during registration.');
+    } catch (err) {
+      setErrorMessage(errorMessageOf(err, 'An error occurred during registration.'));
       setLoading(false);
     }
   };
@@ -56,13 +60,13 @@ export default function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     setLoading(true);
 
     try {
-      const { ok, data } = await apiPost('/auth/login', { email, password });
-      if (!ok) throw new Error(data?.detail || 'Login failed');
+      const { ok, data } = await apiPost<UserProfile>('/auth/login', { email, password });
+      if (!ok) throw new Error(apiErrorDetail(data, 'Login failed'));
 
       setSuccessMessage('Logged in successfully!');
       setTimeout(() => onAuthenticated(data), 1000);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Incorrect email or password.');
+    } catch (err) {
+      setErrorMessage(errorMessageOf(err, 'Incorrect email or password.'));
       setLoading(false);
     }
   };

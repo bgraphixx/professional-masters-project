@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { User as UserIcon, Plus } from 'lucide-react';
-import { apiGet, apiPost } from '../api';
-import type { AdminUser, AdminMlMetrics, Category } from '../types';
+import { apiGet, apiPost, apiErrorDetail } from '../api';
+import { useAsyncEffect } from '../hooks';
+import type { AdminUser, AdminUserListResponse, AdminMlMetrics, Category } from '../types';
 
 const ADMIN_USERS_PAGE_SIZE = 10;
+
+function errorMessageOf(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export default function AdminTab() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -23,7 +28,7 @@ export default function AdminTab() {
   const fetchAdminUsers = async () => {
     setAdminUsersLoading(true);
     try {
-      const { ok, data } = await apiGet(`/admin/users?skip=${adminUsersPage * ADMIN_USERS_PAGE_SIZE}&limit=${ADMIN_USERS_PAGE_SIZE}`);
+      const { ok, data } = await apiGet<AdminUserListResponse>(`/admin/users?skip=${adminUsersPage * ADMIN_USERS_PAGE_SIZE}&limit=${ADMIN_USERS_PAGE_SIZE}`);
       if (ok) {
         setAdminUsers(data.users);
         setAdminUsersTotal(data.total);
@@ -53,27 +58,23 @@ export default function AdminTab() {
     }
   };
 
-  useEffect(() => {
+  useAsyncEffect(async () => {
     fetchAdminCategories();
     fetchAdminMlMetrics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    fetchAdminUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminUsersPage]);
+  useAsyncEffect(fetchAdminUsers, [adminUsersPage]);
 
   const handleCreateAdminCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminCategorySaving(true);
     try {
-      const { ok, data } = await apiPost('/admin/categories', { name: newCategoryName, type: newCategoryType });
-      if (!ok) throw new Error(data?.detail || 'Failed to create category');
+      const { ok, data } = await apiPost<Category>('/admin/categories', { name: newCategoryName, type: newCategoryType });
+      if (!ok) throw new Error(apiErrorDetail(data, 'Failed to create category'));
       setNewCategoryName('');
       fetchAdminCategories();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(errorMessageOf(err, 'Failed to create category'));
     } finally {
       setAdminCategorySaving(false);
     }
