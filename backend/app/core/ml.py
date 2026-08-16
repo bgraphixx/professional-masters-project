@@ -151,10 +151,7 @@ def predict_category(description: str) -> Tuple[str, float, bool]:
     return "Uncategorised", 0.0, True
 
 def retrain_model(user_labeled_data: list) -> Tuple[int, int]:
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.pipeline import Pipeline
-    from app.scripts.seed import MOCK_TRANSACTIONS_DATA
+    from app.scripts.seed import MOCK_TRANSACTIONS_DATA, _new_pipeline
 
     # Extract descriptions and categories from mock data and user data
     descriptions = [item[0] for item in MOCK_TRANSACTIONS_DATA] + [item[0] for item in user_labeled_data]
@@ -164,11 +161,9 @@ def retrain_model(user_labeled_data: list) -> Tuple[int, int]:
     # (predict_category), so training and prediction see identical text.
     descriptions = [normalize_narration(d) for d in descriptions]
 
-    # Create the text classification pipeline
-    pipeline = Pipeline([
-        ('vectorizer', TfidfVectorizer(lowercase=True, ngram_range=(1, 2))),
-        ('classifier', LogisticRegression(C=1.0, max_iter=1000))
-    ])
+    # Same pipeline shape as the baseline model (word+char feature union +
+    # LogisticRegression) — see _new_pipeline() for why.
+    pipeline = _new_pipeline()
 
     # Train model
     pipeline.fit(descriptions, categories)

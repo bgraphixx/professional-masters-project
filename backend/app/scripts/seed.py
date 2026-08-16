@@ -20,7 +20,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import FeatureUnion, Pipeline
 
 # Default categories list with types
 DEFAULT_CATEGORIES = [
@@ -332,8 +332,20 @@ MOCK_TRANSACTIONS_DATA = [
 ]
 
 def _new_pipeline() -> Pipeline:
+    # word(1,2) + char_wb(3,5) feature union: char n-grams generalise across
+    # the misspellings/abbreviations common in bank narrations ("Vreakfast",
+    # "Dinnr", "Tbr") in a way pure word n-grams can't. Confirmed by
+    # app/scripts/ml_experiment.py across two corpus-expansion rounds (see
+    # experiment_log in app/ml/artifacts/metrics.json) to beat the plain
+    # word(1,2) vectorizer by ~9-11 points of validation accuracy, with no
+    # change to LogisticRegression, so predict_category()'s confidence-based
+    # flagging (which relies on predict_proba) is unaffected.
+    vectorizer = FeatureUnion([
+        ('word', TfidfVectorizer(lowercase=True, ngram_range=(1, 2))),
+        ('char', TfidfVectorizer(lowercase=True, analyzer='char_wb', ngram_range=(3, 5))),
+    ])
     return Pipeline([
-        ('vectorizer', TfidfVectorizer(lowercase=True, ngram_range=(1, 2))),
+        ('vectorizer', vectorizer),
         ('classifier', LogisticRegression(C=1.0, max_iter=1000))
     ])
 
