@@ -27,10 +27,12 @@ async def train_model_endpoint(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Query all transactions where category_id is present, joined with category name
+    # Only train on human-confirmed labels (manual entry with an explicit
+    # category, or a later edit) — never on the model's own unreviewed
+    # auto-assignments, which would otherwise reinforce its own mistakes.
     stmt = (
         select(Transaction)
-        .where(Transaction.category_id.isnot(None))
+        .where(Transaction.category_id.isnot(None), Transaction.category_confirmed.is_(True))
         .options(selectinload(Transaction.category))
     )
     result = await db.execute(stmt)

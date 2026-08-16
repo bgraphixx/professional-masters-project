@@ -88,6 +88,11 @@ class Transaction(Base):
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="manual")  # "manual" or "csv"
     confidence_score: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False, default=1.0)
     is_flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # True only when a human explicitly chose this category (manual entry with
+    # category_id set, or a later edit) — never for an ML/rule auto-assignment.
+    # retrain_model() uses this to learn only from human-confirmed labels
+    # instead of reinforcing its own unreviewed guesses.
+    category_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,

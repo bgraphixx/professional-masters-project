@@ -66,7 +66,9 @@ MOCK_TRANSACTIONS_DATA = [
     ("Bolt ride back home", "Transport (Danfo, Uber, Keke)"),
     ("Keke ride from bus stop", "Transport (Danfo, Uber, Keke)"),
     ("Danfo to Maryland", "Transport (Danfo, Uber, Keke)"),
-    
+    ("MOBILE TRF TO PAY/ Uber trip /TOLUWANI BAKARE", "Transport (Danfo, Uber, Keke)"),
+    ("FT Out:DAMILARE ADEBAYO8134567209 OPY InDrive", "Transport (Danfo, Uber, Keke)"),
+
     # Airtime & Data
     ("MTN Airtime topup via Opay", "Airtime & Data"),
     ("Glo 10GB data bundle subscription", "Airtime & Data"),
@@ -78,6 +80,9 @@ MOCK_TRANSACTIONS_DATA = [
     ("Airtel data bundle recharge", "Airtime & Data"),
     ("Glo credit transfer", "Airtime & Data"),
     ("9mobile data recharge via PalmPay", "Airtime & Data"),
+    ("Airtime: MTN NIGERIA - 08123456789", "Airtime & Data"),
+    ("Data: AIRTEL NIGERIA - 08167294031", "Airtime & Data"),
+    ("MOBILE BILLS PYMT/ MTN DATA/08123456789", "Airtime & Data"),
 
     # Food & Groceries
     ("Purchase at Spar Supermarket Lekki", "Food & Groceries"),
@@ -90,6 +95,9 @@ MOCK_TRANSACTIONS_DATA = [
     ("Bought beef and fish from local market", "Food & Groceries"),
     ("Sweet Sensation pastry purchase", "Food & Groceries"),
     ("Chowdeck delivery Kilimanjaro", "Food & Groceries"),
+    ("MOBILE TRF TO MMF/ Groceries /PRIME MART SUPERMARKET ENTERPRISES", "Food & Groceries"),
+    ("OPay Card Payment | MONIE POINT | FRESH BITES KITCHEN 004821 LANG", "Food & Groceries"),
+    ("FT Out:Kaycee Kitchen And Grill9021456783 MONIEPT Lunch", "Food & Groceries"),
 
     # Utilities
     ("Eko Electricity prepaid meter token purchase", "Utilities"),
@@ -102,6 +110,7 @@ MOCK_TRANSACTIONS_DATA = [
     ("Netflix monthly premium subscription", "Utilities"),
     ("Waste collection fee payment", "Utilities"),
     ("Prepaid power token 10000", "Utilities"),
+    ("MOBILE BILLS PYMT/ EKEDC/0208112233445", "Utilities"),
 
     # Rent
     ("Monthly rent for 3 bedroom flat Yaba", "Rent"),
@@ -119,7 +128,9 @@ MOCK_TRANSACTIONS_DATA = [
     ("Salary payment from employer", "Salary"),
     ("Monthly basic pay credit", "Salary"),
     ("Bonus payout from company", "Salary"),
-    
+    ("Payment of Salary July 2026", "Salary"),
+    ("IBRAHIM OLUWASEUN MARTINS (XXXXXXXXX - Access Bank) with reference Salary/Jul 2026/Employee Name", "Salary"),
+
     # Business Income
     ("Freelance writing contract payment received", "Business Income"),
     ("Customer transfer for POS sales transaction", "Business Income"),
@@ -129,6 +140,8 @@ MOCK_TRANSACTIONS_DATA = [
     ("Payment received for software project development", "Business Income"),
     ("Dividends payment received", "Business Income"),
     ("Freelance UI design work payout", "Business Income"),
+    ("A Billion Laughs Limited (XXXXXXXXXX - Titan Paystack) with reference Website Maintenance", "Business Income"),
+    ("QUALISERVE TECHNOLOGIES LIMITED (XXXXXXXXXX - Fidelity Bank) with reference Inward transfer", "Business Income"),
 
     # School Fees
     ("Term 2 school fees payment for daughter", "School Fees"),
@@ -153,6 +166,7 @@ MOCK_TRANSACTIONS_DATA = [
     ("Optical checkup and glasses purchase", "Medical"),
     ("Maternity care hospital payment", "Medical"),
     ("Health insurance premium renewal", "Medical"),
+    ("FT Out:Wellcare Pharmaceutical Care Ltd - Wellcare Pharmacy Ikeja5041293876 MONIEPT Medication", "Medical"),
 
     # Entertainment
     ("Cinema ticket at Filmhouse Cinemas", "Entertainment"),
@@ -177,6 +191,7 @@ MOCK_TRANSACTIONS_DATA = [
     ("Massage therapy session", "Personal Care"),
     ("Barbing saloon payment", "Personal Care"),
     ("Cosmetics shopping at Justrite", "Personal Care"),
+    ("MOBILE TRF TO MMF/ Haircut /SUNSHINE BARBERSHOP - SUNSHINE BARBERSHOP 2", "Personal Care"),
 
     # Clothing
     ("New outfit purchase at a Lagos boutique", "Clothing"),
@@ -189,6 +204,7 @@ MOCK_TRANSACTIONS_DATA = [
     ("Bag purchase at Ikeja City Mall", "Clothing"),
     ("Traditional attire for wedding ceremony", "Clothing"),
     ("Jeans and shirts shopping at the boutique", "Clothing"),
+    ("MOBILE TRF TO PAT/ Purchase of shoes /PAYSTACK CHECKOUT", "Clothing"),
 
     # Business Expenses
     ("Purchase of inventory stock for shop", "Business Expenses"),
@@ -201,6 +217,8 @@ MOCK_TRANSACTIONS_DATA = [
     ("POS terminal maintenance fee", "Business Expenses"),
     ("Warehouse storage fee payment", "Business Expenses"),
     ("Raw materials purchase for production", "Business Expenses"),
+    ("PERFECT PRINT TECH (XXXXXXXXXX - Moniepoint Microfinance Bank) with reference Dock Accessory", "Business Expenses"),
+    ("PAYSTACK CHECKOUT (XXXXXXXXXX - Titan Paystack) with reference Zoho Books", "Business Expenses"),
 
     # Other Expense
     ("ATM withdrawal for personal use", "Other Expense"),
@@ -225,6 +243,9 @@ MOCK_TRANSACTIONS_DATA = [
     ("Loan repayment received from friend", "Other Income"),
     ("Grant payment received from NGO", "Other Income"),
     ("Miscellaneous credit alert to account", "Other Income"),
+    ("Interest paid on - TOLUWANI BAKARE/10000045821", "Other Income"),
+    ("OWealth Interest Earned", "Other Income"),
+    ("NFT//BO/OKOMU OIL PLC DIV 12 NEFT/OKOMUOIL 30411 DIV 12", "Other Income"),
 
     # Bank Charges & Fees
     ("SMS alert fee deducted for the month", "Bank Charges & Fees"),
@@ -235,6 +256,15 @@ MOCK_TRANSACTIONS_DATA = [
     ("SMS Alert Charge NIP", "Bank Charges & Fees"),
     ("Stamp Duty COT Chg", "Bank Charges & Fees"),
     ("Acct Maint Fee Q3", "Bank Charges & Fees"),
+    ("Electronic Outward Transfer Stamp Duty", "Bank Charges & Fees"),
+    ("FGN Stamp Duty for 6 txns 12/07--18/07/26", "Bank Charges & Fees"),
+    ("SMS Alert Fee-29/06-28/07/2026 + VAT", "Bank Charges & Fees"),
+    ("COMMISSION MOBILE TRF TO PAY/ Fuel /TOLUWANI BAKARE", "Bank Charges & Fees"),
+    ("VAT MOBILE TRF TO PAY/ Fuel /TOLUWANI BAKARE", "Bank Charges & Fees"),
+    ("USSD Charge", "Bank Charges & Fees"),
+    ("VAT on Transfer Fee", "Bank Charges & Fees"),
+    ("Copper Brass - Rev/COT with reference Jul 2026 service charge for NGN outflows", "Bank Charges & Fees"),
+    ("COMMISSION e-Statement Request", "Bank Charges & Fees"),
 
     # Loan / Debt Repayment
     ("Loan repayment for personal loan", "Loan / Debt Repayment"),
@@ -245,6 +275,11 @@ MOCK_TRANSACTIONS_DATA = [
     ("Loan Repymt Trf", "Loan / Debt Repayment"),
     ("Debt Repayment NIP", "Loan / Debt Repayment"),
     ("Credit Facility Repayment", "Loan / Debt Repayment"),
+    ("Loan Interest Repayment - TOLUWANI BAKARE - 04051034040009821", "Loan / Debt Repayment"),
+    ("Loan Principal Repayment - TOLUWANI BAKARE - 04051034040009821", "Loan / Debt Repayment"),
+    ("Loan Interest Deduction - TOLUWANI BAKARE - 04051034040009821", "Loan / Debt Repayment"),
+    ("Loan Principal Deduction - TOLUWANI BAKARE - 04051034040009821", "Loan / Debt Repayment"),
+    ("MOBILE TRF TO IMF/ Final loan repayment /TOLUWANI BAKARE", "Loan / Debt Repayment"),
 
     # Internal Transfer / Savings
     ("Cowrywise savings plan funding", "Internal Transfer / Savings"),
@@ -255,6 +290,11 @@ MOCK_TRANSACTIONS_DATA = [
     ("Transfer to own account for safekeeping", "Internal Transfer / Savings"),
     ("Investment wallet funding via app", "Internal Transfer / Savings"),
     ("Savings Plan Funding NIP", "Internal Transfer / Savings"),
+    ("Cowrywise Financial Technology/Cowrywise/AT5_MFDS9123456789012345", "Internal Transfer / Savings"),
+    ("Fixed Dep. Booking - 2026/07/09 -TOLUWANI BAKARE/10000045821", "Internal Transfer / Savings"),
+    ("Fixed Deposit Pre-liquidation - TOLUWANI BAKARE/1200099821", "Internal Transfer / Savings"),
+    ("MFY / Cowrywise-Cowrywise/TOLUWANI BAKARE (XXXXXXXXX - Sterling Bank) with reference Mutual Funds", "Internal Transfer / Savings"),
+    ("MOBILE TRF TO AMB/ /Cowrywise/TOLUWANI BAKARE", "Internal Transfer / Savings"),
 
     # Religious Giving / Donations
     ("Tithe payment to church", "Religious Giving / Donations"),
@@ -265,6 +305,12 @@ MOCK_TRANSACTIONS_DATA = [
     ("Sadaqah given to charity", "Religious Giving / Donations"),
     ("Church Payment NIP", "Religious Giving / Donations"),
     ("Harvest Donation Trf", "Religious Giving / Donations"),
+    ("FT Out:GRACE CHAPEL INTERNATIONAL0028999521 ABP Offering", "Religious Giving / Donations"),
+    ("MOBILE TRF TO ACCESS/Offering/GRACE CHAPEL INTERNATIONAL", "Religious Giving / Donations"),
+    ("MOBILE TRF TO ACCESS/Building project/GRACE CHAPEL INTERNATIONAL", "Religious Giving / Donations"),
+    ("FT Out:TOLUWANI BAKARE1538299521 ABP For tithe", "Religious Giving / Donations"),
+    ("MOBILE TRF TO SIB/ Offering and Seed /REDEMPTION CITY CHURCH", "Religious Giving / Donations"),
+    ("MOBILE TRF TO FBN/ Offering /REDEMPTION CITY CHURCH,IKEJA", "Religious Giving / Donations"),
 
     # Uncategorised — narrations with no extractable merchant signal, either
     # because they're pure card-processor metadata with the noise tokens
@@ -280,6 +326,9 @@ MOCK_TRANSACTIONS_DATA = [
     ("Refund", "Uncategorised"),
     ("Reversal of transaction", "Uncategorised"),
     ("Card Ttx Amount successful", "Uncategorised"),
+    ("TRANSFER", "Uncategorised"),
+    ("Tbr", "Uncategorised"),
+    ("Reversal of Card Ttx Amount 350000 PAN 419927xxxxxxxxx1123 STAN 552310 RRN fip-a12e9f6c5b3d8a12ff01c223 Term 2ISPT441", "Uncategorised"),
 ]
 
 def _new_pipeline() -> Pipeline:

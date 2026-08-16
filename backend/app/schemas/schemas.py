@@ -97,6 +97,7 @@ class TransactionResponse(BaseModel):
     source: str
     confidence_score: float
     is_flagged: bool
+    category_confirmed: bool
     category: Optional[CategoryResponse] = None
 
 

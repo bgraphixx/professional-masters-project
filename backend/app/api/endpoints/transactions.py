@@ -152,6 +152,9 @@ async def create_transaction(
     category_id = tx_in.category_id
     confidence_score = 1.00
     is_flagged = False
+    # A category the user typed in themselves is a real human label; one
+    # predict_category() guesses is not, until the user reviews/edits it.
+    category_confirmed = category_id is not None
 
     # Run ML prediction if category is omitted
     if not category_id:
@@ -177,7 +180,8 @@ async def create_transaction(
         type=tx_in.type,
         source=tx_in.source or "manual",
         confidence_score=confidence_score,
-        is_flagged=is_flagged
+        is_flagged=is_flagged,
+        category_confirmed=category_confirmed
     )
 
     db.add(new_tx)
@@ -218,11 +222,13 @@ async def update_transaction(
     if tx_in.is_flagged is not None:
         tx.is_flagged = tx_in.is_flagged
 
-    # Special handling: if category is manually overridden, set confidence score to 100% and unflag
+    # Special handling: if category is manually overridden, set confidence score to 100%,
+    # unflag, and mark it as a human-confirmed label for future retraining.
     if tx_in.category_id is not None:
         tx.category_id = tx_in.category_id
         tx.confidence_score = 1.00
         tx.is_flagged = False
+        tx.category_confirmed = True
 
     await db.commit()
     await db.refresh(tx)

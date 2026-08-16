@@ -95,11 +95,11 @@ FALLBACK_RULES = [
     # Bank Charges & Fees
     (["stamp duty", "sms alert fee", "sms alert charge", "transfer commission", "vat on fee", "maintenance fee", "card maintenance", "account maintenance", "cot charge", "bank charge", "service fee deduction", "commission on turnover"], "Bank Charges & Fees"),
     # Loan / Debt Repayment
-    (["loan repayment", "loan installment", "loan instalment", "debt repayment", "credit facility repayment", "overdraft repayment", "loan payment to", "paylater repayment"], "Loan / Debt Repayment"),
+    (["loan repayment", "loan installment", "loan instalment", "debt repayment", "credit facility repayment", "overdraft repayment", "loan payment to", "paylater repayment", "loan interest repayment", "loan principal repayment", "loan interest deduction", "loan principal deduction"], "Loan / Debt Repayment"),
     # Internal Transfer / Savings
     (["cowrywise", "piggyvest", "fixed deposit booking", "fixed deposit pre-liquidation", "savings plan funding", "self transfer", "transfer to own account", "target savings", "investment wallet funding"], "Internal Transfer / Savings"),
     # Religious Giving / Donations
-    (["tithe", "offering payment", "church payment", "church donation", "mosque donation", "zakat", "sadaqah", "harvest donation", "building fund donation"], "Religious Giving / Donations"),
+    (["tithe", "offering payment", "offering", "building project", "church payment", "church donation", "mosque donation", "zakat", "sadaqah", "harvest donation", "building fund donation"], "Religious Giving / Donations"),
 ]
 
 def check_rules(description: str) -> Tuple[str, float]:
