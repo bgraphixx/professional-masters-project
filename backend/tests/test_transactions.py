@@ -5,6 +5,10 @@ Integration tests for /transactions/* endpoints.
 import io
 import pytest
 from httpx import AsyncClient
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
 
 pytestmark = pytest.mark.asyncio
 
@@ -188,6 +192,70 @@ async def test_csv_import_invalid_file(auth_client: AsyncClient):
     files = {"file": ("bad.csv", io.BytesIO(csv_content.encode()), "text/csv")}
     resp = await auth_client.post("/transactions/import-csv", files=files)
     assert resp.status_code == 400
+
+
+def _build_pdf_with_spurious_summary_table() -> bytes:
+    """Build a synthetic statement PDF shaped like the ones that broke
+    header detection: the first extracted "table" is really page layout
+    (an account summary box) collapsed into a single giant cell that
+    happens to mention "date" and "description" in passing, followed by
+    the real transaction table with distinct Date/Description columns."""
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter)
+    story = []
+
+    summary_text = (
+        "Statement summary report generated for the account holder covering "
+        "the review period. Please note that the date and description of "
+        "each transaction posted during this period are detailed further "
+        "below, alongside applicable balances, charges, and running totals "
+        "for the account. This paragraph exists purely as page layout text "
+        "and is not a transaction table header. " * 3
+    )
+    assert len(summary_text) > 500
+    assert "date" in summary_text.lower() and "description" in summary_text.lower()
+    # A single-row table doesn't reliably get picked up as its own region by
+    # pdfplumber's table detector; a second short row keeps the giant cell
+    # intact as one table while still isolating it from the real one below.
+    junk_table = Table([[summary_text], ["Page 1 of 1"]], colWidths=[6 * inch])
+    junk_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("FONTSIZE", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(junk_table)
+    story.append(Spacer(1, 0.3 * inch))
+
+    real_table = Table(
+        [
+            ["Date", "Description", "Debit", "Credit"],
+            ["2026-07-01", "Shoprite groceries", "12000", ""],
+            ["2026-07-02", "Salary payment", "", "250000"],
+            ["2026-07-03", "Uber ride", "3500", ""],
+        ],
+        colWidths=[1.2 * inch, 2.3 * inch, 1 * inch, 1 * inch],
+    )
+    real_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+    story.append(real_table)
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+async def test_pdf_import_skips_spurious_summary_table(auth_client: AsyncClient):
+    """Regression test: a PDF whose first extracted 'table' is page layout
+    collapsed into one giant cell that happens to contain the words 'date'
+    and 'description' must not be mistaken for the real transaction table
+    header — the import should find the real table that follows instead
+    of failing with 'Could not locate Description/Narration column.'"""
+    pdf_bytes = _build_pdf_with_spurious_summary_table()
+    files = {"file": ("statement.pdf", io.BytesIO(pdf_bytes), "application/pdf")}
+    resp = await auth_client.post("/transactions/import-pdf", files=files)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_parsed"] == 3
+    assert data["total_imported"] == 3
 
 
 async def test_get_categories(auth_client: AsyncClient):

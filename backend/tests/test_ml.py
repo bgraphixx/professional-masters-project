@@ -127,6 +127,40 @@ def test_new_taxonomy_fallback_rules(description, expected_category):
     assert confidence == 1.00
 
 
+@pytest.mark.parametrize("description,expected_category", [
+    ("CIBN MEMBERSHIP FEES", "Business Expenses"),
+    ("Annual membership dues payment", "Business Expenses"),
+    ("MOBILE TRF TO PAY/ Medication refill /CHIDI OKONKWO", "Medical"),
+    ("Wellcare Pharmaceutical Care Ltd payment", "Medical"),
+])
+def test_membership_and_pharmaceutical_fallback_rules(description, expected_category):
+    """Regression test for two confirmed rule-keyword gaps: 'CIBN MEMBERSHIP
+    FEES' and bare 'medication'/'pharmaceutical' narrations (without the
+    word 'pharmacy') previously fell through to Uncategorised."""
+    category, confidence = check_rules(description)
+    assert category == expected_category
+    assert confidence == 1.00
+
+
+def test_new_keywords_do_not_match_inside_unrelated_words():
+    """Regression test in the spirit of the 'mobil' inside '9mobile' bug:
+    the new membership/medication/pharmaceutical keywords must only match
+    as whole words/phrases, never as a substring of an unrelated token."""
+    # "medication" must not fire when it's a substring of a larger token
+    # with no word boundary around it.
+    category, _ = check_rules("Premedications review before travel")
+    assert category != "Medical"
+    # "pharmaceutical" must not fire as a substring of a larger token.
+    category, _ = check_rules("Nonpharmaceuticals inventory audit")
+    assert category != "Medical"
+    # "membership fee"/"membership dues" require the literal two-word
+    # phrase; bare "membership" alone (e.g. a club/gym context already
+    # covered by Personal Care's "gym membership monthly fee" example)
+    # must not falsely trigger Business Expenses.
+    category, _ = check_rules("Gym membership renewal for the month")
+    assert category != "Business Expenses"
+
+
 def test_no_cross_category_collision_in_fallback_rules():
     """No two category keyword lists should share a keyword that could cause
     the wrong category to win purely based on FALLBACK_RULES ordering."""

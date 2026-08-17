@@ -121,6 +121,11 @@ MOCK_TRANSACTIONS_DATA = [
     ("Caution deposit for new flat", "Rent"),
     ("House rent payment 2026", "Rent"),
     ("Apartment lease renewal", "Rent"),
+    ("Two year rent payment for duplex", "Rent"),
+    ("Agent fee for new apartment rental", "Rent"),
+    ("Rent renewal for office space", "Rent"),
+    ("Estate service charge annual payment", "Rent"),
+    ("Landlord rent alert for the year", "Rent"),
 
     # Salary
     ("Monthly Salary payment from Tech Corp", "Salary"),
@@ -130,6 +135,11 @@ MOCK_TRANSACTIONS_DATA = [
     ("Bonus payout from company", "Salary"),
     ("Payment of Salary July 2026", "Salary"),
     ("IBRAHIM OLUWASEUN MARTINS (XXXXXXXXX - Access Bank) with reference Salary/Jul 2026/Employee Name", "Salary"),
+    ("Payment of Salary August 2026", "Salary"),
+    ("Net salary alert for the month", "Salary"),
+    ("13th month salary bonus credit", "Salary"),
+    ("Half salary advance payment", "Salary"),
+    ("IBRAHIM OLUWASEUN MARTINS (XXXXXXXXX - Access Bank) with reference Salary/Aug 2026/Staff Payroll", "Salary"),
 
     # Business Income
     ("Freelance writing contract payment received", "Business Income"),

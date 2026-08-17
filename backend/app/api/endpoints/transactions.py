@@ -470,17 +470,41 @@ async def import_transactions_pdf(
                         continue
                         
                     if header is None:
+                        # Some PDFs' extract_tables() returns a spurious first "table"
+                        # that's really the whole page's surrounding layout collapsed
+                        # into one or two giant cells. A real header row is made of
+                        # short column-label cells, never a paragraph-length blob, so
+                        # skip any row containing a cell that long before even trying
+                        # to match it as a header.
+                        if any(len(c) > 500 for c in clean_row):
+                            continue
+
                         row_lower = [c.lower() for c in clean_row]
-                        has_date = any(x in c for x in ["date"] for c in row_lower)
-                        has_desc = any(x in c for x in ["description", "narration", "remarks", "details", "memo"] for c in row_lower)
-                        if has_date and has_desc:
+                        date_col_idx = next((i for i, c in enumerate(row_lower) if "date" in c), -1)
+                        desc_col_idx = next(
+                            (i for i, c in enumerate(row_lower)
+                             if any(x in c for x in ("description", "narration", "remarks", "details", "memo"))),
+                            -1
+                        )
+                        # The date and description labels must live in distinct cells
+                        # of the same row (not just be substrings somewhere in the
+                        # row), and each matching cell must be short enough to be a
+                        # real column label rather than a summary paragraph that
+                        # happens to mention both words.
+                        if (
+                            date_col_idx != -1
+                            and desc_col_idx != -1
+                            and date_col_idx != desc_col_idx
+                            and len(clean_row[date_col_idx]) < 200
+                            and len(clean_row[desc_col_idx]) < 200
+                        ):
                             header = clean_row
                             for i, col in enumerate(row_lower):
                                 if "date" in col:
                                     date_idx = i
                                 elif any(x in col for x in ("description", "narration", "remarks", "details", "memo")):
                                     desc_idx = i
-                                elif any(x in col for x in ("amount", "value", "balance")): 
+                                elif any(x in col for x in ("amount", "value", "balance")):
                                     if "balance" not in col or "amount" in col:
                                         amount_idx = i
                                 elif any(x in col for x in ("debit", "withdrawal", "payment")):

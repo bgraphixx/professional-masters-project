@@ -83,7 +83,7 @@ FALLBACK_RULES = [
     # School Fees
     (["school fees", "school fee", "tuition", "waec", "jamb", "pta levy", "nursery school", "creche", "exam registration", "school uniform"], "School Fees"),
     # Medical
-    (["hospital", "pharmacy", "clinic", "nhis", "health insurance", "dental", "diagnostic center", "medplus", "malaria drug", "consultation fee", "lab test", "optical checkup", "maternity"], "Medical"),
+    (["hospital", "pharmacy", "pharmaceutical", "medication", "clinic", "nhis", "health insurance", "dental", "diagnostic center", "medplus", "malaria drug", "consultation fee", "lab test", "optical checkup", "maternity"], "Medical"),
     # Entertainment
     (["cinema", "filmhouse", "concert ticket", "amusement park", "bowling", "karaoke", "nightclub", "club entry", "viewing center"], "Entertainment"),
     # Personal Care
@@ -91,7 +91,7 @@ FALLBACK_RULES = [
     # Clothing
     (["boutique", "tailor", "ankara", "shoe repair", "designer wear", "traditional attire", "shopping complex"], "Clothing"),
     # Business Expenses
-    (["business registration", "cac registration", "office supplies", "stationery purchase", "wholesale goods", "pos terminal", "warehouse storage", "raw materials", "inventory stock", "business marketing"], "Business Expenses"),
+    (["business registration", "cac registration", "office supplies", "stationery purchase", "wholesale goods", "pos terminal", "warehouse storage", "raw materials", "inventory stock", "business marketing", "membership fee", "membership fees", "membership dues"], "Business Expenses"),
     # Bank Charges & Fees
     (["stamp duty", "sms alert fee", "sms alert charge", "transfer commission", "vat on fee", "maintenance fee", "card maintenance", "account maintenance", "cot charge", "bank charge", "service fee deduction", "commission on turnover"], "Bank Charges & Fees"),
     # Loan / Debt Repayment

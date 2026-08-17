@@ -1,12 +1,12 @@
 {
-  "train_samples": 162,
-  "validation_samples": 35,
-  "test_samples": 35,
+  "train_samples": 169,
+  "validation_samples": 36,
+  "test_samples": 37,
   "train_accuracy": 1.0,
-  "validation_accuracy": 0.6,
-  "test_accuracy": 0.6286,
-  "total_training_corpus_size": 232,
-  "trained_at": "2026-08-16T06:52:43.835525+00:00",
+  "validation_accuracy": 0.6667,
+  "test_accuracy": 0.6486,
+  "total_training_corpus_size": 242,
+  "trained_at": "2026-08-17T09:25:21.043498+00:00",
   "experiment_log": [
     {
       "label": "LogReg C=0.001 word(1,2)",
