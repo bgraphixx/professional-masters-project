@@ -138,12 +138,7 @@ export default function SettingsTab({ user, onUserUpdated, pendingRetrain, setPe
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-on-background">Settings</h2>
-        <p className="text-slate-500 text-sm mt-1">Manage your account and preferences.</p>
-      </div>
-
+    <div className="space-y-6 max-w-4xl">
       <Banner error={errorMessage} success={successMessage} />
 
       {/* Profile Form */}

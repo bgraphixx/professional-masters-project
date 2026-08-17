@@ -43,7 +43,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex text-on-background font-sans">
+    <div className="min-h-screen bg-background flex flex-col md:flex-row text-on-background font-sans">
       <Sidebar
         user={user}
         activeTab={activeTab}

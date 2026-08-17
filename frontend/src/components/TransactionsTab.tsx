@@ -228,7 +228,7 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-primary hover:bg-[#00522b] text-white px-3.5 py-2 rounded-default text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-[0_2px_4px_rgba(0,106,57,0.1)] ml-auto md:ml-0"
+            className="bg-primary hover:bg-[#00522b] text-white px-3.5 py-2 rounded-default text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-[0_2px_4px_rgba(0,106,57,0.1)]"
           >
             <Plus className="w-4 h-4" />
             <span>Add Manual</span>
@@ -302,7 +302,7 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
                       {tx.is_flagged && (
                         <div className="group relative">
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-500 cursor-help" />
-                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20 leading-relaxed font-sans">
+                          <span className="absolute bottom-full left-0 mb-2 w-44 max-w-[70vw] p-2 bg-slate-900 text-white text-[10px] rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-20 leading-relaxed font-sans">
                             Low Confidence prediction ({(tx.confidence_score * 100).toFixed(0)}%). Review category.
                           </span>
                         </div>
@@ -378,7 +378,7 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Amount (₦)</label>
                   <input
@@ -405,7 +405,7 @@ export default function TransactionsTab({ onCategoryCorrected }: TransactionsTab
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="block font-mono text-label-sm uppercase tracking-wider text-slate-500">Date</label>
                   <input

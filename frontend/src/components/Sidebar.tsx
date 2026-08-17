@@ -23,21 +23,13 @@ const NAV_ITEMS: { id: TabId; label: string; icon: typeof LayoutDashboard }[] = 
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-const MOBILE_NAV_ITEMS: { id: TabId; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'transactions', label: 'Transactions', icon: FileSpreadsheet },
-  { id: 'budgets', label: 'Budgets', icon: PiggyBank },
-  { id: 'insights', label: 'AI Insights & ML', icon: Sparkles },
-];
-
 export default function Sidebar({
   user, activeTab, setActiveTab,
   isSidebarCollapsed, setIsSidebarCollapsed,
   isMobileMenuOpen, setIsMobileMenuOpen,
   onLogout,
 }: SidebarProps) {
-  const desktopItems = [...NAV_ITEMS, ...(user.is_admin ? [{ id: 'admin' as TabId, label: 'Admin', icon: ShieldCheck }] : [])];
-  const mobileItems = [...MOBILE_NAV_ITEMS, ...(user.is_admin ? [{ id: 'admin' as TabId, label: 'Admin', icon: ShieldCheck }] : [])];
+  const navItems = [...NAV_ITEMS, ...(user.is_admin ? [{ id: 'admin' as TabId, label: 'Admin', icon: ShieldCheck }] : [])];
 
   return (
     <>
@@ -68,7 +60,7 @@ export default function Sidebar({
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {desktopItems.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -138,7 +130,7 @@ export default function Sidebar({
       {/* Mobile Menu Drawer Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="w-64 bg-surface-lowest h-full flex flex-col transition-all duration-300" onClick={(e) => e.stopPropagation()}>
+          <div className="w-64 max-w-[85vw] bg-surface-lowest h-full flex flex-col transition-all duration-300" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 flex items-center justify-between border-b border-outline-variant/20">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-default bg-primary flex items-center justify-center">
@@ -157,7 +149,7 @@ export default function Sidebar({
             </div>
 
             <nav className="flex-1 px-3 py-4 space-y-1">
-              {mobileItems.map((item) => {
+              {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (

@@ -224,16 +224,16 @@ export default function AdminTab() {
             <div className="text-center py-8 text-slate-400 text-sm">Loading metrics…</div>
           ) : adminMlMetrics ? (
             <div className="space-y-1 font-mono text-[10px] text-slate-500 bg-surface-low border border-outline-variant/40 rounded p-3">
-              <div className="flex justify-between"><span>Train Samples:</span><span className="text-slate-800 font-bold">{adminMlMetrics.train_samples ?? '—'}</span></div>
-              <div className="flex justify-between"><span>Validation Samples:</span><span className="text-slate-800 font-bold">{adminMlMetrics.validation_samples ?? '—'}</span></div>
-              <div className="flex justify-between"><span>Test Samples:</span><span className="text-slate-800 font-bold">{adminMlMetrics.test_samples ?? '—'}</span></div>
-              <div className="flex justify-between border-t border-slate-200/50 pt-1"><span>Train Accuracy:</span><span className="text-primary font-bold">{adminMlMetrics.train_accuracy != null ? `${(adminMlMetrics.train_accuracy * 100).toFixed(1)}%` : '—'}</span></div>
-              <div className="flex justify-between"><span>Validation Accuracy:</span><span className="text-secondary font-bold">{adminMlMetrics.validation_accuracy != null ? `${(adminMlMetrics.validation_accuracy * 100).toFixed(1)}%` : '—'}</span></div>
-              <div className="flex justify-between"><span>Test Accuracy:</span><span className="text-secondary font-bold">{adminMlMetrics.test_accuracy != null ? `${(adminMlMetrics.test_accuracy * 100).toFixed(1)}%` : '—'}</span></div>
-              <div className="flex justify-between border-t border-slate-200/50 pt-1"><span>Training Corpus:</span><span className="text-slate-800 font-bold">{adminMlMetrics.total_training_corpus_size ?? '—'}</span></div>
-              <div className="flex justify-between"><span>Trained At:</span><span className="text-slate-800 font-bold">{adminMlMetrics.trained_at ? new Date(adminMlMetrics.trained_at).toLocaleString() : '—'}</span></div>
-              <div className="flex justify-between"><span>Model File:</span><span className="text-slate-800 font-bold">{adminMlMetrics.model_file_size_bytes != null ? `${(adminMlMetrics.model_file_size_bytes / 1024).toFixed(1)} KB` : '—'}</span></div>
-              <div className="flex justify-between"><span>Model Updated:</span><span className="text-slate-800 font-bold">{adminMlMetrics.model_file_timestamp ? new Date(adminMlMetrics.model_file_timestamp).toLocaleString() : '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Train Samples:</span><span className="text-slate-800 font-bold">{adminMlMetrics.train_samples ?? '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Validation Samples:</span><span className="text-slate-800 font-bold">{adminMlMetrics.validation_samples ?? '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Test Samples:</span><span className="text-slate-800 font-bold">{adminMlMetrics.test_samples ?? '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-200/50 pt-1"><span>Train Accuracy:</span><span className="text-primary font-bold">{adminMlMetrics.train_accuracy != null ? `${(adminMlMetrics.train_accuracy * 100).toFixed(1)}%` : '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Validation Accuracy:</span><span className="text-secondary font-bold">{adminMlMetrics.validation_accuracy != null ? `${(adminMlMetrics.validation_accuracy * 100).toFixed(1)}%` : '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Test Accuracy:</span><span className="text-secondary font-bold">{adminMlMetrics.test_accuracy != null ? `${(adminMlMetrics.test_accuracy * 100).toFixed(1)}%` : '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-200/50 pt-1"><span>Training Corpus:</span><span className="text-slate-800 font-bold">{adminMlMetrics.total_training_corpus_size ?? '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Trained At:</span><span className="text-slate-800 font-bold">{adminMlMetrics.trained_at ? new Date(adminMlMetrics.trained_at).toLocaleString() : '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Model File:</span><span className="text-slate-800 font-bold">{adminMlMetrics.model_file_size_bytes != null ? `${(adminMlMetrics.model_file_size_bytes / 1024).toFixed(1)} KB` : '—'}</span></div>
+              <div className="flex justify-between flex-wrap gap-x-2 gap-y-0.5"><span>Model Updated:</span><span className="text-slate-800 font-bold">{adminMlMetrics.model_file_timestamp ? new Date(adminMlMetrics.model_file_timestamp).toLocaleString() : '—'}</span></div>
             </div>
           ) : (
             <div className="text-center py-8 text-slate-400 text-sm">No metrics available yet.</div>
