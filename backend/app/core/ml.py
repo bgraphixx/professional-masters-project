@@ -64,14 +64,28 @@ def load_model():
         else:
             print(f"Warning: ML model not found at {model_path}. Falling back to rule-based mapping.")
 
-# Rule-based fallback keyword mapping
+# Rule-based fallback keyword mapping. Checked in order — first match wins.
+# Bank Charges & Fees is checked first because fee line-items (e.g.
+# "COMMISSION MOBILE TRF TO PAY/ Breakfast /NAME") embed the *underlying*
+# transfer's purpose text, which can otherwise false-match a later, more
+# specific category before the fee keyword itself is even reached — the fee
+# is always Bank Charges & Fees regardless of what the transfer paid for.
 FALLBACK_RULES = [
+    # Bank Charges & Fees
+    #
+    # Bare "commission"/"vat" are deliberately broad: on statements that emit
+    # a separate fee line per transfer (e.g. "COMMISSION MOBILE TRF TO PAY/
+    # Breakfast /NAME", "VAT MOBILE TRF TO PAY/ ..."), that line is always the
+    # bank's cut on the transfer, regardless of what the transfer itself was
+    # for — so matching on the fee keyword alone (not the transfer's purpose
+    # text) is correct rather than a false positive.
+    (["stamp duty", "sms alert fee", "sms alert charge", "transfer commission", "vat on fee", "maintenance fee", "card maintenance", "account maintenance", "cot charge", "bank charge", "service fee deduction", "commission on turnover", "commission", "vat"], "Bank Charges & Fees"),
     # Transport
     (["danfo", "uber", "bolt", "taxify", "keke", "fare", "brt", "transport", "ride", "fuel", "total filling", "filling station", "conoil", "mobil", "eko bridge"], "Transport (Danfo, Uber, Keke)"),
     # Airtime & Data
     (["airtime", "data", "mtn", "glo", "airtel", "9mobile", "recharge", "vtu", "topup", "credit transfer", "spectranet", "smile wifi", "palmpay airtime"], "Airtime & Data"),
     # Food & Groceries
-    (["spar", "shoprite", "groceries", "supermarket", "restaurant", "jevinik", "chicken republic", "chowdeck", "kilimanjaro", "pastry", "market", "mallam", "bread", "milk", "eggs", "food", "eat"], "Food & Groceries"),
+    (["spar", "shoprite", "groceries", "supermarket", "restaurant", "jevinik", "chicken republic", "chowdeck", "kilimanjaro", "pastry", "market", "mallam", "bread", "milk", "eggs", "food", "eat", "ebeano", "foodmart"], "Food & Groceries"),
     # Utilities
     (["electricity", "prepaid", "dstv", "gotv", "showmax", "netflix", "water bill", "lawma", "waste", "utility", "utility bill", "ikeja electric", "eko electric"], "Utilities"),
     # Rent
@@ -85,15 +99,13 @@ FALLBACK_RULES = [
     # Medical
     (["hospital", "pharmacy", "pharmaceutical", "medication", "clinic", "nhis", "health insurance", "dental", "diagnostic center", "medplus", "malaria drug", "consultation fee", "lab test", "optical checkup", "maternity"], "Medical"),
     # Entertainment
-    (["cinema", "filmhouse", "concert ticket", "amusement park", "bowling", "karaoke", "nightclub", "club entry", "viewing center"], "Entertainment"),
+    (["cinema", "filmhouse", "concert ticket", "amusement park", "bowling", "karaoke", "nightclub", "club entry", "viewing center", "spotify"], "Entertainment"),
     # Personal Care
     (["barbershop", "barbing", "salon", "manicure", "pedicure", "spa treatment", "gym membership", "skincare", "makeup", "massage therapy", "cosmetics"], "Personal Care"),
     # Clothing
     (["boutique", "tailor", "ankara", "shoe repair", "designer wear", "traditional attire", "shopping complex"], "Clothing"),
     # Business Expenses
-    (["business registration", "cac registration", "office supplies", "stationery purchase", "wholesale goods", "pos terminal", "warehouse storage", "raw materials", "inventory stock", "business marketing", "membership fee", "membership fees", "membership dues"], "Business Expenses"),
-    # Bank Charges & Fees
-    (["stamp duty", "sms alert fee", "sms alert charge", "transfer commission", "vat on fee", "maintenance fee", "card maintenance", "account maintenance", "cot charge", "bank charge", "service fee deduction", "commission on turnover"], "Bank Charges & Fees"),
+    (["business registration", "cac registration", "office supplies", "stationery purchase", "wholesale goods", "pos terminal", "warehouse storage", "raw materials", "inventory stock", "business marketing", "membership fee", "membership fees", "membership dues", "hostinger", "canva"], "Business Expenses"),
     # Loan / Debt Repayment
     (["loan repayment", "loan installment", "loan instalment", "debt repayment", "credit facility repayment", "overdraft repayment", "loan payment to", "paylater repayment", "loan interest repayment", "loan principal repayment", "loan interest deduction", "loan principal deduction"], "Loan / Debt Repayment"),
     # Internal Transfer / Savings

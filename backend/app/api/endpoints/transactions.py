@@ -44,6 +44,39 @@ def clean_amount(val: str) -> float:
     except ValueError:
         return 0.0
 
+# Some bank statement tables (observed on OPay wallet exports) lose their
+# column boundaries on rows whose description wraps across multiple visual
+# lines: pdfplumber collapses the whole row into a single populated cell
+# holding every wrapped line joined by "\n", with every other cell None.
+# The description text can wrap both before *and* after the line carrying
+# the actual date/amount/channel/reference data, so this matches that one
+# "data line" wherever it falls and treats every other line in the cell as
+# part of the description.
+_COLLAPSED_ROW_DATA_RE = re.compile(
+    r"^(\d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2})\s+(\d{2} [A-Za-z]{3} \d{4})"
+    r"\s+(?:(.*?)\s+)?([\d,]+\.\d{2}|--)\s+([\d,]+\.\d{2}|--)\s+([\d,]+\.\d{2}|--)"
+    r"\s+(\S+)\s+(\S+)\s*$"
+)
+
+def reparse_collapsed_row(cell_text: str) -> Optional[dict]:
+    lines = [l.strip() for l in cell_text.split("\n") if l.strip()]
+    data_line_idx = None
+    match = None
+    for i, line in enumerate(lines):
+        m = _COLLAPSED_ROW_DATA_RE.match(line)
+        if m:
+            data_line_idx, match = i, m
+            break
+    if match is None:
+        return None
+
+    _trans_time, value_date, inline_desc, debit, credit, _balance, _channel, _ref = match.groups()
+    desc_parts = lines[:data_line_idx] + ([inline_desc] if inline_desc else []) + lines[data_line_idx + 1:]
+    desc = " ".join(p for p in desc_parts if p).strip()
+    if not desc:
+        return None
+    return {"date": value_date, "desc": desc, "debit": debit, "credit": credit}
+
 @router.get("", response_model=List[TransactionResponse])
 async def get_transactions(
     category_id: Optional[uuid.UUID] = None,
@@ -513,10 +546,54 @@ async def import_transactions_pdf(
                                     credit_idx = i
                         continue
                     else:
+                        # pdfplumber's grid detection isn't consistent across pages of
+                        # the same statement — some pages pad rows with extra blank
+                        # leading/trailing cells (observed as 8 columns on one page,
+                        # 12 on another for the same table). date_idx/desc_idx/etc.
+                        # were resolved once against the header's column count, so a
+                        # differently-padded row silently shifts every field into the
+                        # wrong column instead of erroring. If trimming blank cells off
+                        # both ends recovers the header's column count, use that
+                        # realigned row instead of the raw one.
+                        if header and len(row) != len(header):
+                            trimmed = row
+                            while trimmed and (trimmed[0] is None or not str(trimmed[0]).strip()):
+                                trimmed = trimmed[1:]
+                            while trimmed and (trimmed[-1] is None or not str(trimmed[-1]).strip()):
+                                trimmed = trimmed[:-1]
+                            if len(trimmed) == len(header):
+                                row = trimmed
+                                clean_row = [str(c).replace('\n', ' ').strip() if c is not None else "" for c in row]
+
+                        # Use the raw (pre-flatten) cell here: reparse_collapsed_row
+                        # needs the original "\n"-separated lines to tell wrapped
+                        # description text apart from the data line.
+                        raw_non_empty = [c for c in row if c is not None and str(c).strip()]
+                        if len(raw_non_empty) == 1:
+                            reparsed = reparse_collapsed_row(str(raw_non_empty[0]))
+                            if reparsed:
+                                fixed_row = [""] * len(clean_row)
+                                if date_idx != -1:
+                                    fixed_row[date_idx] = reparsed["date"]
+                                if desc_idx != -1:
+                                    fixed_row[desc_idx] = reparsed["desc"]
+                                if debit_idx != -1:
+                                    fixed_row[debit_idx] = reparsed["debit"]
+                                if credit_idx != -1:
+                                    fixed_row[credit_idx] = reparsed["credit"]
+                                rows_to_process.append(fixed_row)
+                                continue
                         rows_to_process.append(clean_row)
 
-    # Use OPay parsed transactions if we successfully matched its unique text pattern
-    if len(opay_transactions) > 0 and (bank == 'opay' or not bank or len(rows_to_process) == 0):
+    # Use OPay's page-text parsing only when explicitly requested or when the
+    # table extraction found nothing at all. The text pattern reads each
+    # transaction off a single physical line, so on statements where a
+    # description wraps across lines (common on OPay wallet exports) it
+    # silently loses whatever wrapped past the amount fields. The table
+    # extraction (with reparse_collapsed_row filling in rows that lost their
+    # column boundaries) handles wrapped descriptions correctly, so prefer it
+    # whenever it actually produced rows.
+    if len(opay_transactions) > 0 and (bank == 'opay' or len(rows_to_process) == 0):
         header = True  # bypass header check
         date_idx, desc_idx, debit_idx, credit_idx, amount_idx = 0, 1, 2, 3, -1
         rows_to_process = [[tx['date'], tx['desc'].strip(), tx['debit'], tx['credit']] for tx in opay_transactions]
