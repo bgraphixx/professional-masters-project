@@ -1,4 +1,10 @@
-version: '3.8'
+# docker-compose.yml — Production-ready base (this is what Dokploy deploys).
+#
+# Secrets/config come entirely from backend/.env (copy backend/.env.example
+# and fill in real values) plus the POSTGRES_* / VITE_API_URL vars below.
+#
+# For local development with hot-reload, layer on docker-compose.dev.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 services:
   db:
@@ -6,15 +12,14 @@ services:
     container_name: finance_tracker_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: finance_tracker
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-finance_tracker}
+    # Not published — only reachable from other services on the compose network.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d finance_tracker"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-finance_tracker}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,20 +30,13 @@ services:
       dockerfile: Dockerfile
     container_name: finance_tracker_backend
     restart: always
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/backend
+    # entrypoint.sh runs `alembic upgrade head` before this
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/finance_tracker
-      - JWT_SECRET_KEY=dev_secret_key_nigerian_personal_finance_tracker_2026_jwt_token_key_32
-      - JWT_ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
-      - FRONTEND_URL=http://localhost:5173
-      - ALLOWED_ORIGINS=http://localhost:5173
-      - COOKIE_SECURE=False
-      - ENVIRONMENT=development
+    env_file:
+      - path: ./backend/.env
+        required: false
     depends_on:
       db:
         condition: service_healthy
@@ -47,15 +45,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # No target set — builds the final (nginx) stage.
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.yourdomain.com}
     container_name: finance_tracker_frontend
     restart: always
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/frontend
-      - /frontend/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8000
+      - "80:80"
     depends_on:
       - backend
 

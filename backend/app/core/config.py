@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
     COOKIE_NAME: str = "session_token"
     ALLOWED_ORIGINS: str = "http://localhost:5173"
+    FRONTEND_URL: str = "http://localhost:5173"
     COOKIE_SECURE: bool = False
     ENVIRONMENT: str = "development"
 

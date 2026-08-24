@@ -18,4 +18,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy source code
 COPY . .
 
+RUN chmod +x entrypoint.sh
+
 EXPOSE 8000
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

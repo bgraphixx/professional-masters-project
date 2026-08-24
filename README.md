@@ -58,15 +58,21 @@
 
 ### Quick Start
 
+`docker-compose.yml` alone is the production-safe base (no dev secrets, no
+hot-reload, frontend served by nginx). For local development, layer on
+`docker-compose.dev.yml`, which adds hot-reload, source volume mounts, and
+dev defaults for env vars/ports.
+
 ```bash
 # 1. Clone the repository
 git clone <repo-url>
 cd professional-masters-project
 
-# 2. Start all services (DB + Backend + Frontend)
-docker compose up -d --build
+# 2. Start all services (DB + Backend + Frontend) in dev mode
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 # 3. Apply database migrations
+# (the backend container also runs this automatically on boot via entrypoint.sh)
 docker compose exec backend alembic upgrade head
 
 # 4. Seed categories and train the ML model baseline
@@ -150,19 +156,27 @@ cp backend/.env.example backend/.env
 # Edit DATABASE_URL, JWT_SECRET_KEY, ALLOWED_ORIGINS, COOKIE_SECURE=True, ENVIRONMENT=production
 ```
 
-### 2. Deploy with production overrides
+### 2. Deploy
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 
-Production differences vs development:
-- **No `--reload`** — uvicorn runs with **4 workers** for concurrency.
-- **No source-code volume mounts** — code is baked into the Docker image.
-- **`COOKIE_SECURE=True`** — session cookies only transmitted over HTTPS.
-- **DB port not exposed** — PostgreSQL is internal-only.
+`docker-compose.yml` on its own *is* the production configuration (this is
+what Dokploy runs) — no `-f` overlay needed:
+- Uvicorn runs with **4 workers**, no `--reload`.
+- No source-code volume mounts — code is baked into the Docker image.
+- Frontend is a static Vite build served by nginx (not the dev server).
+- All secrets/config come from `backend/.env` — nothing is hard-coded.
+- DB port not published — PostgreSQL is only reachable on the compose network.
 
-### 3. Apply migrations
+Set `COOKIE_SECURE=True`, `ALLOWED_ORIGINS`, and `ENVIRONMENT=production` in
+`backend/.env` before deploying.
+
+### 3. Migrations
+
+The backend container runs `alembic upgrade head` automatically on startup
+(see `backend/entrypoint.sh`). To run it manually:
 
 ```bash
 docker compose exec backend alembic upgrade head

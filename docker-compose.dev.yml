@@ -1,0 +1,40 @@
+# docker-compose.dev.yml — Local development overlay.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Adds hot-reload, source volume mounts, and dev-friendly ports/env on top
+# of the production-safe docker-compose.yml base. Only additive overrides
+# are used here (no attempt to clear lists from the base file) since Compose
+# merges list fields (volumes/ports/environment) rather than replacing them.
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/finance_tracker
+      - JWT_SECRET_KEY=dev_secret_key_nigerian_personal_finance_tracker_2026_jwt_token_key_32
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - FRONTEND_URL=http://localhost:5173
+      - ALLOWED_ORIGINS=http://localhost:5173
+      - COOKIE_SECURE=False
+      - ENVIRONMENT=development
+
+  frontend:
+    build:
+      target: dev
+    container_name: finance_tracker_frontend
+    volumes:
+      - ./frontend:/frontend
+      - /frontend/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
