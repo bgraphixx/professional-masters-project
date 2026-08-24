@@ -7,6 +7,11 @@
 # of the production-safe docker-compose.yml base. Only additive overrides
 # are used here (no attempt to clear lists from the base file) since Compose
 # merges list fields (volumes/ports/environment) rather than replacing them.
+#
+# The base file attaches backend/frontend to an external dokploy-network,
+# which only exists on a Dokploy host. Redeclaring it here without
+# `external: true` overrides that so Compose creates it as a normal local
+# network on dev machines instead of requiring Dokploy to be present.
 
 services:
   db:
@@ -17,6 +22,8 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/backend
+    ports:
+      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/finance_tracker
       - JWT_SECRET_KEY=dev_secret_key_nigerian_personal_finance_tracker_2026_jwt_token_key_32
@@ -38,3 +45,7 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:8000
+
+networks:
+  dokploy-network:
+    external: false

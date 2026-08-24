@@ -1,5 +1,4 @@
-# docker-compose.yml — Production-ready base (this is what Dokploy deploys).
-#
+# Production-ready base — this is what Dokploy deploys.
 # Secrets/config come entirely from backend/.env (copy backend/.env.example
 # and fill in real values) plus the POSTGRES_* / VITE_API_URL vars below.
 #
@@ -32,11 +31,16 @@ services:
     restart: always
     # entrypoint.sh runs `alembic upgrade head` before this
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    ports:
-      - "8000:8000"
+    # Reached via dokploy-network + Traefik, not a published host port
+    # (a host port here would conflict with Dokploy's own proxy on 80/443).
+    expose:
+      - "8000"
     env_file:
       - path: ./backend/.env
         required: false
+    networks:
+      - default
+      - dokploy-network
     depends_on:
       db:
         condition: service_healthy
@@ -50,10 +54,18 @@ services:
         VITE_API_URL: ${VITE_API_URL:-https://api.yourdomain.com}
     container_name: finance_tracker_frontend
     restart: always
-    ports:
-      - "80:80"
+    # Reached via dokploy-network + Traefik, not a published host port.
+    expose:
+      - "80"
+    networks:
+      - default
+      - dokploy-network
     depends_on:
       - backend
+
+networks:
+  dokploy-network:
+    external: true
 
 volumes:
   postgres_data:
