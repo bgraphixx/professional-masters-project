@@ -38,6 +38,10 @@ services:
     env_file:
       - path: ./backend/.env
         required: false
+    environment:
+      # Built from the same POSTGRES_* vars as the db service so the two can
+      # never drift out of sync — do not also set DATABASE_URL in backend/.env.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finance_tracker}
     networks:
       - default
       - dokploy-network
