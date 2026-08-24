@@ -6,6 +6,7 @@ venv/
 .pytest_cache/
 *.joblib
 *.pkl
+!backend/app/ml/artifacts/model.joblib
 
 # Node
 node_modules/
