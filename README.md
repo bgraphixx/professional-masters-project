@@ -1,5 +1,7 @@
 # NairaAI — AI-Powered Personal Finance Tracker
 
+**Author:** Ibeh Ebubechukwu David (2025/A/MIT/0271)
+
 > A full-stack personal finance management system designed for the Nigerian market. Automatically categorises transactions using machine learning, tracks budgets in real time, and surfaces AI-generated insights (alerts, trends, recommendations, anomaly detection).
 
 ---

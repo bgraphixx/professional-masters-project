@@ -106,6 +106,12 @@ export default function Sidebar({
             <LogOut className="w-4 h-4 text-slate-500" />
             {!isSidebarCollapsed && <span>Sign Out</span>}
           </button>
+
+          {!isSidebarCollapsed && (
+            <p className="text-center text-[10px] text-slate-400 pt-1">
+              Ibeh Ebubechukwu David (2025/A/MIT/0271)
+            </p>
+          )}
         </div>
       </aside>
 
@@ -189,6 +195,9 @@ export default function Sidebar({
                 <LogOut className="w-4 h-4 text-slate-500" />
                 <span>Sign Out</span>
               </button>
+              <p className="text-center text-[10px] text-slate-400 pt-1">
+                Ibeh Ebubechukwu David (2025/A/MIT/0271)
+              </p>
             </div>
           </div>
         </div>

@@ -19,7 +19,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Personal Finance Tracker API",
     version="1.0.0",
-    description="Backend API for NairaAI — Personal Finance Tracker with AI-Powered Budgeting Insights",
+    description="Backend API for NairaAI — Personal Finance Tracker with AI-Powered Budgeting Insights. "
+                 "Developed by Ibeh Ebubechukwu David (2025/A/MIT/0271).",
     lifespan=lifespan,
 )
 
