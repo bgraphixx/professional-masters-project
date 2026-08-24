@@ -147,14 +147,20 @@ docker compose exec backend python -m pytest tests/ --cov=app --cov-report=term-
 
 ### 1. Prepare secrets
 
+`docker-compose.yml` reads every backend variable via `${VAR}` substitution,
+sourced from a `.env` file at the **compose project root** (not
+`backend/.env` — see `backend/.env.example` for the full list). On Dokploy,
+set these in the app's Environment Variables panel instead of a checked-in
+file; Dokploy writes them to that root `.env` for you.
+
 ```bash
 # Generate a strong JWT secret
 openssl rand -hex 32
-
-# Copy and fill in backend/.env
-cp backend/.env.example backend/.env
-# Edit DATABASE_URL, JWT_SECRET_KEY, ALLOWED_ORIGINS, COOKIE_SECURE=True, ENVIRONMENT=production
 ```
+
+Required variables (see `backend/.env.example`): `POSTGRES_PASSWORD`,
+`JWT_SECRET_KEY`, `ALLOWED_ORIGINS`, `FRONTEND_URL`, `VITE_API_URL`. Set
+`COOKIE_SECURE=True` and `ENVIRONMENT=production`.
 
 ### 2. Deploy
 
@@ -167,11 +173,9 @@ what Dokploy runs) — no `-f` overlay needed:
 - Uvicorn runs with **4 workers**, no `--reload`.
 - No source-code volume mounts — code is baked into the Docker image.
 - Frontend is a static Vite build served by nginx (not the dev server).
-- All secrets/config come from `backend/.env` — nothing is hard-coded.
+- `DATABASE_URL` is derived from `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`
+  so the backend and the `db` service can never disagree on the password.
 - DB port not published — PostgreSQL is only reachable on the compose network.
-
-Set `COOKIE_SECURE=True`, `ALLOWED_ORIGINS`, and `ENVIRONMENT=production` in
-`backend/.env` before deploying.
 
 ### 3. Migrations
 

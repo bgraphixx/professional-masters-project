@@ -1,6 +1,8 @@
 # Production-ready base — this is what Dokploy deploys.
-# Secrets/config come entirely from backend/.env (copy backend/.env.example
-# and fill in real values) plus the POSTGRES_* / VITE_API_URL vars below.
+# All config comes from ${VAR} substitution below, sourced from Dokploy's
+# Environment Variables panel (which writes a .env at the compose project
+# root, not backend/.env — a physical backend/.env file is NOT read here).
+# See backend/.env.example for the full list of variables to set in Dokploy.
 #
 # For local development with hot-reload, layer on docker-compose.dev.yml:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
@@ -35,13 +37,17 @@ services:
     # (a host port here would conflict with Dokploy's own proxy on 80/443).
     expose:
       - "8000"
-    env_file:
-      - path: ./backend/.env
-        required: false
     environment:
       # Built from the same POSTGRES_* vars as the db service so the two can
-      # never drift out of sync — do not also set DATABASE_URL in backend/.env.
+      # never drift out of sync.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-finance_tracker}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_SECURE: ${COOKIE_SECURE:-True}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
     networks:
       - default
       - dokploy-network
