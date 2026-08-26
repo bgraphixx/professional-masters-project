@@ -29,6 +29,12 @@ async def _create_budget(auth_client: AsyncClient, cat_id: str, limit: float = 5
     return resp.json()
 
 
+def _add_months(month: int, year: int, n: int) -> tuple[int, int]:
+    period = year * 12 + month + n
+    y, m0 = divmod(period - 1, 12)
+    return m0 + 1, y
+
+
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 async def test_list_budgets_empty(auth_client: AsyncClient):
@@ -146,3 +152,75 @@ async def test_delete_nonexistent_budget(auth_client: AsyncClient):
     fake_id = str(uuid.uuid4())
     resp = await auth_client.delete(f"/budgets/{fake_id}")
     assert resp.status_code == 404
+
+
+async def test_create_recurring_budget(auth_client: AsyncClient):
+    cat_id = await _expense_cat_id(auth_client)
+    resp = await auth_client.post("/budgets", json={
+        "category_id": cat_id,
+        "limit_amount": 40000.0,
+        "month": MONTH,
+        "year": YEAR,
+        "is_recurring": True,
+    })
+    assert resp.status_code == 201, resp.text
+    budget = resp.json()
+    assert budget["is_recurring"] is True
+    assert budget["series_id"] == budget["id"]
+
+
+async def test_recurring_budget_auto_generates_future_months(auth_client: AsyncClient):
+    cat_id = await _expense_cat_id(auth_client)
+    created = await auth_client.post("/budgets", json={
+        "category_id": cat_id,
+        "limit_amount": 40000.0,
+        "month": MONTH,
+        "year": YEAR,
+        "is_recurring": True,
+    })
+    series_id = created.json()["series_id"]
+
+    target_month, target_year = _add_months(MONTH, YEAR, 3)
+    resp = await auth_client.get(f"/budgets?month={target_month}&year={target_year}")
+    assert resp.status_code == 200
+    matching = [b for b in resp.json() if b["category_id"] == cat_id]
+    assert matching
+    assert matching[0]["is_recurring"] is True
+    assert matching[0]["series_id"] == series_id
+    assert matching[0]["limit_amount"] == 40000.0
+
+    # the in-between month should also have been backfilled
+    mid_month, mid_year = _add_months(MONTH, YEAR, 1)
+    resp = await auth_client.get(f"/budgets?month={mid_month}&year={mid_year}")
+    matching = [b for b in resp.json() if b["category_id"] == cat_id]
+    assert matching
+    assert matching[0]["series_id"] == series_id
+
+
+async def test_stop_recurring_removes_future_generated_rows(auth_client: AsyncClient):
+    cat_id = await _expense_cat_id(auth_client)
+    created = await auth_client.post("/budgets", json={
+        "category_id": cat_id,
+        "limit_amount": 40000.0,
+        "month": MONTH,
+        "year": YEAR,
+        "is_recurring": True,
+    })
+    origin_id = created.json()["id"]
+
+    # jump ahead to auto-generate a far-future row before deciding to stop
+    far_month, far_year = _add_months(MONTH, YEAR, 5)
+    await auth_client.get(f"/budgets?month={far_month}&year={far_year}")
+
+    # stop recurring from the very first (earliest) row, not the latest generated one
+    stop_resp = await auth_client.put(f"/budgets/{origin_id}", json={
+        "limit_amount": 40000.0,
+        "is_recurring": False,
+    })
+    assert stop_resp.status_code == 200
+    assert stop_resp.json()["is_recurring"] is False
+
+    # the already-generated future row should be gone, and nothing new generates beyond it
+    resp = await auth_client.get(f"/budgets?month={far_month}&year={far_year}")
+    matching = [b for b in resp.json() if b["category_id"] == cat_id]
+    assert matching == []

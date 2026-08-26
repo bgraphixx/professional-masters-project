@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Filter, Trash2, AlertTriangle, PiggyBank, X } from 'lucide-react';
+import { Plus, Filter, Trash2, AlertTriangle, PiggyBank, X, Repeat } from 'lucide-react';
 import { apiGet, apiPost, apiPut, apiDelete, apiErrorDetail } from '../api';
 import { useAsyncEffect } from '../hooks';
 import { formatNaira, MONTH_NAMES } from '../utils';
@@ -20,6 +20,7 @@ export default function BudgetsTab() {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [budgetCategoryId, setBudgetCategoryId] = useState('');
   const [budgetLimit, setBudgetLimit] = useState('');
+  const [budgetIsRecurring, setBudgetIsRecurring] = useState(false);
 
   useAsyncEffect(async () => {
     const { ok, data } = await apiGet<Category[]>('/transactions/categories');
@@ -43,12 +44,16 @@ export default function BudgetsTab() {
     setBudgetLoading(true);
     try {
       const result = editingBudget
-        ? await apiPut<Budget>(`/budgets/${editingBudget.id}`, { limit_amount: parseFloat(budgetLimit) })
+        ? await apiPut<Budget>(`/budgets/${editingBudget.id}`, {
+            limit_amount: parseFloat(budgetLimit),
+            is_recurring: budgetIsRecurring,
+          })
         : await apiPost<Budget>('/budgets', {
             category_id: budgetCategoryId,
             limit_amount: parseFloat(budgetLimit),
             month: budgetMonth,
             year: budgetYear,
+            is_recurring: budgetIsRecurring,
           });
       if (!result.ok) throw new Error(apiErrorDetail(result.data, 'Failed to save budget'));
 
@@ -56,6 +61,7 @@ export default function BudgetsTab() {
       setEditingBudget(null);
       setBudgetCategoryId('');
       setBudgetLimit('');
+      setBudgetIsRecurring(false);
       fetchBudgets();
     } catch (err) {
       alert(errorMessageOf(err, 'Failed to save budget'));
@@ -91,7 +97,7 @@ export default function BudgetsTab() {
           </select>
         </div>
         <button
-          onClick={() => { setEditingBudget(null); setBudgetCategoryId(''); setBudgetLimit(''); setIsBudgetModalOpen(true); }}
+          onClick={() => { setEditingBudget(null); setBudgetCategoryId(''); setBudgetLimit(''); setBudgetIsRecurring(false); setIsBudgetModalOpen(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-bold rounded-default hover:bg-[#00522b] transition-colors shadow-[0_2px_6px_rgba(0,106,57,0.15)] cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Add Budget
@@ -120,7 +126,14 @@ export default function BudgetsTab() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-bold text-sm text-on-background">{budget.category?.name || 'Unknown'}</p>
-                    <p className="text-[10px] text-slate-400 font-mono uppercase mt-0.5">{MONTH_NAMES[budget.month - 1]} {budget.year}</p>
+                    <p className="text-[10px] text-slate-400 font-mono uppercase mt-0.5 flex items-center gap-1">
+                      {MONTH_NAMES[budget.month - 1]} {budget.year}
+                      {budget.is_recurring && (
+                        <span className="inline-flex items-center gap-0.5 text-primary" title="Repeats every month">
+                          <Repeat className="w-2.5 h-2.5" /> Recurring
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {budget.is_breached && (
@@ -131,7 +144,7 @@ export default function BudgetsTab() {
                     {!budget.is_breached && pct >= 80 && (
                       <span className="text-[9px] font-bold bg-amber-500/10 text-amber-700 border border-amber-400/20 px-2 py-0.5 rounded-full">WARNING</span>
                     )}
-                    <button onClick={() => { setEditingBudget(budget); setBudgetLimit(String(budget.limit_amount)); setIsBudgetModalOpen(true); }} className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-surface-low transition-colors cursor-pointer" title="Edit">
+                    <button onClick={() => { setEditingBudget(budget); setBudgetLimit(String(budget.limit_amount)); setBudgetIsRecurring(budget.is_recurring); setIsBudgetModalOpen(true); }} className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-surface-low transition-colors cursor-pointer" title="Edit">
                       <Filter className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => handleDeleteBudget(budget.id)} className="p-1.5 rounded text-slate-400 hover:text-error hover:bg-error/5 transition-colors cursor-pointer" title="Delete">
@@ -200,6 +213,18 @@ export default function BudgetsTab() {
                   className="w-full bg-surface-lowest border border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary rounded-default py-2.5 px-3 text-on-background text-sm outline-none"
                 />
               </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={budgetIsRecurring}
+                  onChange={(e) => setBudgetIsRecurring(e.target.checked)}
+                  className="rounded border-outline-variant text-primary focus:ring-primary/20 bg-surface-lowest w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                  <Repeat className="w-3 h-3" />
+                  {editingBudget ? 'Keep repeating this budget every month' : 'Repeat this budget every month'}
+                </span>
+              </label>
               <button
                 type="submit"
                 disabled={budgetLoading}

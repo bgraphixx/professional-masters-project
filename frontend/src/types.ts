@@ -40,6 +40,8 @@ export interface Budget {
   limit_amount: number;
   month: number;
   year: number;
+  is_recurring: boolean;
+  series_id: string | null;
   category: Category | null;
   spent_amount: number;
   percent_used: number;

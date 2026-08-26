@@ -43,6 +43,71 @@ async def _enrich_budget(budget: Budget, db: AsyncSession) -> BudgetResponse:
     return data
 
 
+# Safety cap on how many months a single request can backfill for one series,
+# in case a recurring budget is very old and a far-future month is requested.
+_MAX_GENERATE_MONTHS = 36
+
+
+def _period(month: int, year: int) -> int:
+    return year * 12 + month
+
+
+def _month_year_from_period(period: int) -> tuple[int, int]:
+    year, month0 = divmod(period - 1, 12)
+    return month0 + 1, year
+
+
+async def _materialize_recurring_budgets(
+    user_id: uuid.UUID, target_month: int, target_year: int, db: AsyncSession
+) -> None:
+    """Ensure every active recurring series has a row up to (target_month, target_year)."""
+    target_period = _period(target_month, target_year)
+
+    stmt = (
+        select(Budget)
+        .where(Budget.user_id == user_id, Budget.series_id.isnot(None))
+        .order_by(Budget.series_id, Budget.year.desc(), Budget.month.desc())
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+
+    latest_by_series: dict[uuid.UUID, Budget] = {}
+    for row in rows:
+        latest_by_series.setdefault(row.series_id, row)  # first seen per series = latest, per ordering above
+
+    created = False
+    for series_id, latest in latest_by_series.items():
+        if not latest.is_recurring:
+            continue
+        latest_period = _period(latest.month, latest.year)
+        if latest_period >= target_period:
+            continue
+
+        months_to_fill = min(target_period - latest_period, _MAX_GENERATE_MONTHS)
+        for offset in range(1, months_to_fill + 1):
+            month, year = _month_year_from_period(latest_period + offset)
+            exists_stmt = select(Budget.id).where(
+                Budget.user_id == user_id,
+                Budget.category_id == latest.category_id,
+                Budget.month == month,
+                Budget.year == year,
+            )
+            if (await db.execute(exists_stmt)).scalar_one_or_none():
+                continue  # a manual override already occupies this month
+            db.add(Budget(
+                user_id=user_id,
+                category_id=latest.category_id,
+                limit_amount=latest.limit_amount,
+                month=month,
+                year=year,
+                is_recurring=True,
+                series_id=series_id,
+            ))
+            created = True
+
+    if created:
+        await db.commit()
+
+
 @router.get("", response_model=List[BudgetResponse])
 async def get_budgets(
     month: int = None,
@@ -54,6 +119,8 @@ async def get_budgets(
     today = date.today()
     m = month or today.month
     y = year or today.year
+
+    await _materialize_recurring_budgets(current_user.id, m, y, db)
 
     stmt = (
         select(Budget)
@@ -87,12 +154,17 @@ async def create_budget(
             detail="A budget for this category and month already exists.",
         )
 
+    new_id = uuid.uuid4()
     new_budget = Budget(
+        id=new_id,
         user_id=current_user.id,
         category_id=budget_in.category_id,
         limit_amount=budget_in.limit_amount,
         month=budget_in.month,
         year=budget_in.year,
+        is_recurring=budget_in.is_recurring,
+        # A recurring budget is its own series head; future months auto-generate off it.
+        series_id=new_id if budget_in.is_recurring else None,
     )
     db.add(new_budget)
     await db.commit()
@@ -112,7 +184,13 @@ async def update_budget(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update the limit_amount of an existing budget."""
+    """Update the limit_amount (and optionally is_recurring) of an existing budget.
+
+    Past months are untouched, preserving history. Setting is_recurring=False
+    stops the series from this month forward: any already-generated future
+    rows in the same series are removed so the change takes effect regardless
+    of which month's row the user happens to be editing.
+    """
     stmt = (
         select(Budget)
         .where(Budget.id == budget_id, Budget.user_id == current_user.id)
@@ -124,6 +202,20 @@ async def update_budget(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Budget not found.")
 
     budget.limit_amount = budget_in.limit_amount
+    if budget_in.is_recurring is not None:
+        if budget_in.is_recurring and budget.series_id is None:
+            budget.series_id = budget.id  # turning a one-time budget into a series head
+        elif not budget_in.is_recurring and budget.series_id is not None:
+            this_period = _period(budget.month, budget.year)
+            future_stmt = select(Budget).where(
+                Budget.series_id == budget.series_id,
+                Budget.id != budget.id,
+            )
+            future_rows = (await db.execute(future_stmt)).scalars().all()
+            for row in future_rows:
+                if _period(row.month, row.year) > this_period:
+                    await db.delete(row)
+        budget.is_recurring = budget_in.is_recurring
     await db.commit()
     await db.refresh(budget)
 

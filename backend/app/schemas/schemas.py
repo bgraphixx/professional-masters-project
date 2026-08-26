@@ -132,10 +132,16 @@ class BudgetCreate(BaseModel):
     limit_amount: float = Field(..., gt=0.0)
     month: int = Field(..., ge=1, le=12)
     year: int = Field(..., ge=2000, le=2100)
+    # If true, this budget auto-propagates to future months at the same limit
+    # until the user edits it to stop (see BudgetUpdate.is_recurring).
+    is_recurring: bool = False
 
 
 class BudgetUpdate(BaseModel):
     limit_amount: float = Field(..., gt=0.0)
+    # Only meaningful on a recurring budget's latest instance: set False to
+    # stop future months from being generated. Omit to leave unchanged.
+    is_recurring: Optional[bool] = None
 
 
 class BudgetResponse(BaseModel):
@@ -147,6 +153,8 @@ class BudgetResponse(BaseModel):
     limit_amount: float
     month: int
     year: int
+    is_recurring: bool
+    series_id: Optional[uuid.UUID] = None
     category: Optional[CategoryResponse] = None
     # Computed fields populated by the endpoint
     spent_amount: float = 0.0

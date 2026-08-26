@@ -130,6 +130,11 @@ class Budget(Base):
     limit_amount: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False)
     month: Mapped[int] = mapped_column(nullable=False)  # 1 - 12
     year: Mapped[int] = mapped_column(nullable=False)
+    # Recurring budgets: is_recurring marks the row as the latest instance of an
+    # active series; series_id groups every row (past and auto-generated future
+    # ones) that belong to the same recurring budget together.
+    is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default=text("false"))
+    series_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
