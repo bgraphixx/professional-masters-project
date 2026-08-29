@@ -1,7 +1,7 @@
 import asyncio
 import os
 from sqlalchemy import update
-from app.db.session import async_session_maker
+from app.db.session import async_session_local
 from app.db.models import User
 
 async def promote_to_admin():
@@ -10,7 +10,7 @@ async def promote_to_admin():
         print("No ADMIN_EMAIL provided.")
         return
 
-    async with async_session_maker() as session:
+    async with async_session_local() as session:
         result = await session.execute(
             update(User).where(User.email == admin_email).values(is_admin=True)
         )
